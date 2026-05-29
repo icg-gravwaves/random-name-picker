@@ -169,17 +169,20 @@ export function runClawMachine(picker) {
         let winner = targetAnimal.name;
         claw.targetX = targetAnimal.x;
         
-        let fumbleCount = 0;
         if (picker.firstClawGame) {
             picker.firstClawGame = false;
+        }
+        
+        let fumbleCount = 0;
+        const fumbleRoll = Math.random();
+        if (fumbleRoll < 1/6) {
             fumbleCount = 0;
+        } else if (fumbleRoll < 3/6) {
+            fumbleCount = 1;
+        } else if (fumbleRoll < 5/6) {
+            fumbleCount = 2;
         } else {
-            const fumbleRoll = Math.random();
-            if (fumbleRoll < 0.16) {
-                fumbleCount = 2;
-            } else if (fumbleRoll < 0.33) {
-                fumbleCount = 1;
-            }
+            fumbleCount = 3;
         }
         const startTime = Date.now();
         let grabQueued = false;
