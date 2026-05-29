@@ -1,5 +1,7 @@
 import { UI_COLORS } from '../constants.js';
 
+const FIGHTER_EMOJIS = ['🥷', '🦸', '🧟', '🧛', '🧙', '🧝', '🧞', '🤺', '🤼', '🥊', '🥋', '🤖', '👾', '👹', '👺'];
+
 export function drawBattlePreview(picker) {
     if (picker.names.length === 0) return;
     
@@ -16,54 +18,38 @@ export function drawBattlePreview(picker) {
     ctx.textAlign = 'center';
     ctx.fillText(`⚔️ BATTLE ROYALE - ${picker.names.length} Contestants ⚔️`, width / 2, 30);
     
-    const cols = Math.ceil(Math.sqrt(picker.names.length));
-    const rows = Math.ceil(picker.names.length / cols);
-    const cellWidth = (width - 40) / cols;
-    const cellHeight = (height - 100) / rows;
+    const cx = width / 2;
+    const cy = height / 2 + 20;
+    const num = picker.names.length;
+    const maxR = Math.min(width, height - 60) / 2 - 20;
+    const ratio = Math.min(1, Math.max(0.1, num / 20));
+    const R = Math.max(80, maxR * Math.sqrt(ratio));
+    
+    // Draw Arena
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ff6b6b';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fill();
+    
+    const maxRadius = Math.max(15, Math.min(35, (R * Math.PI) / num * 0.8));
     
     picker.names.forEach((name, i) => {
-        const x = 20 + (i % cols) * cellWidth + cellWidth / 2;
-        const y = 50 + Math.floor(i / cols) * cellHeight + cellHeight / 2;
+        const angle = (i / num) * Math.PI * 2;
+        const x = cx + (R - maxRadius - 10) * Math.cos(angle);
+        const y = cy + (R - maxRadius - 10) * Math.sin(angle);
+        const emoji = FIGHTER_EMOJIS[i % FIGHTER_EMOJIS.length];
         
-        const lives = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
-        
-        ctx.save();
-        ctx.translate(x, y);
-        
-        const boxWidth = cellWidth - 10;
-        const boxHeight = cellHeight - 10;
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        
-        ctx.beginPath();
-        ctx.roundRect(-boxWidth/2, -boxHeight/2, boxWidth, boxHeight, 8);
-        ctx.fill();
-        ctx.stroke();
-        
-        if (lives > 0) {
-            const heartSize = Math.min(12, cellWidth / 8);
-            const heartsX = boxWidth/2 - 4;
-            const heartsY = -boxHeight/2 + 4;
-            
-            ctx.font = `${heartSize}px Arial`;
-            ctx.textAlign = 'right';
-            ctx.textBaseline = 'top';
-            
-            let heartStr = '';
-            for (let h = 0; h < lives; h++) {
-                heartStr = '❤️' + heartStr;
-            }
-            ctx.fillText(heartStr, heartsX, heartsY);
-        }
-        
-        ctx.fillStyle = '#000';
-        ctx.font = `bold ${Math.min(16, cellWidth / 6)}px Poppins`;
+        ctx.font = `${maxRadius * 1.5}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(name, 0, 0);
+        ctx.fillText(emoji, x, y);
         
-        ctx.restore();
+        ctx.fillStyle = '#fff';
+        ctx.font = `bold ${Math.max(8, maxRadius * 0.4)}px Poppins`;
+        ctx.fillText(name, x, y + maxRadius + 5);
     });
 }
 
@@ -76,35 +62,34 @@ export function runBattleRoyale(picker) {
         const winnerIndex = picker.getWeightedRandomIndex();
         const winner = picker.names[winnerIndex];
         
-        const cols = Math.ceil(Math.sqrt(picker.names.length));
-        const rows = Math.ceil(picker.names.length / cols);
-        const cellWidth = (width - 40) / cols;
-        const cellHeight = (height - 100) / rows;
+        const cx = width / 2;
+        const cy = height / 2 + 20;
+        const num = picker.names.length;
+        const maxR = Math.min(width, height - 60) / 2 - 20;
+        const initialRatio = Math.min(1, Math.max(0.1, num / 20));
+        let currentR = Math.max(80, maxR * Math.sqrt(initialRatio));
+        
+        const maxRadius = Math.max(15, Math.min(35, (currentR * Math.PI) / num * 0.8));
+        const TARGET_SPEED = 5 / (picker.durationMultiplier || 1);
+        const sizeLoss = maxRadius * 0.10; // 10% of original size
         
         const contestants = picker.names.map((name, i) => {
-            const lives = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
+            const angle = (i / num) * Math.PI * 2;
+            const rAngle = Math.random() * Math.PI * 2;
             
             return {
                 name,
-                x: 20 + (i % cols) * cellWidth + cellWidth / 2,
-                y: 50 + Math.floor(i / cols) * cellHeight + cellHeight / 2,
-                alive: true,
-                opacity: 1,
-                scale: 1,
-                maxLives: lives,
-                lives: lives,
-                eliminated: false,
-                eliminationTime: 0,
-                lastHitTime: 0,
-                isWinner: name === winner
+                isWinner: name === winner,
+                emoji: FIGHTER_EMOJIS[i % FIGHTER_EMOJIS.length],
+                radius: maxRadius,
+                originalRadius: maxRadius,
+                x: cx + (currentR - maxRadius - 10) * Math.cos(angle),
+                y: cy + (currentR - maxRadius - 10) * Math.sin(angle),
+                vx: Math.cos(rAngle) * TARGET_SPEED,
+                vy: Math.sin(rAngle) * TARGET_SPEED,
+                alive: true
             };
         });
-        
-        let lastHitTime = 0;
-        let baseInterval = 600 * picker.durationMultiplier;
-        const startTime = Date.now();
-        
-        const colors = UI_COLORS;
         
         const animate = () => {
             if (picker.animationCancelled) {
@@ -112,64 +97,162 @@ export function runBattleRoyale(picker) {
                 return;
             }
             
-            const elapsed = Date.now() - startTime;
             ctx.clearRect(0, 0, width, height);
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, width, height);
             
+            const active = contestants.filter(c => c.alive);
+            
+            // Shrink circle based on active combatants
+            const targetR = Math.max(60, maxR * Math.sqrt(initialRatio * (active.length / num)));
+            currentR += (targetR - currentR) * 0.02; // Smoothly close in
+            
             ctx.fillStyle = '#ff6b6b';
             ctx.font = 'bold 24px Poppins';
             ctx.textAlign = 'center';
-            const aliveCount = contestants.filter(c => c.alive).length;
-            ctx.fillText(`⚔️ BATTLE ROYALE - ${aliveCount} Remaining ⚔️`, width / 2, 30);
+            ctx.fillText(`⚔️ BATTLE ARENA - ${active.length} Remaining ⚔️`, width / 2, 30);
             
-            const aliveTargets = contestants.filter(c => c.alive && !c.isWinner);
+            // Draw Arena
+            ctx.beginPath();
+            ctx.arc(cx, cy, currentR, 0, Math.PI * 2);
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.fill();
             
-            if (aliveTargets.length > 0) {
-                const progress = 1 - (aliveTargets.length / (contestants.length - 1));
-                const interval = Math.max(80, baseInterval * (1 - progress * 0.85));
+            const takeDamage = (c) => {
+                if (c.isWinner && c.radius <= sizeLoss * 2) {
+                    // Keep winner at minimum 2 hits of health so they can outlive the final opponent
+                    c.radius = sizeLoss * 2;
+                    return;
+                }
+                c.radius -= sizeLoss;
+                if (c.radius <= 0) c.alive = false;
+            };
+            
+            // Apply physics: Move, Collide, Resolve
+            active.forEach(c => {
+                c.x += c.vx;
+                c.y += c.vy;
                 
-                if (elapsed - lastHitTime > interval) {
-                    const target = aliveTargets[Math.floor(Math.random() * aliveTargets.length)];
-                    target.lives--;
-                    target.lastHitTime = elapsed;
+                // Constant speed enforcement
+                const speed = Math.sqrt(c.vx * c.vx + c.vy * c.vy);
+                if (speed > 0.001) {
+                    c.vx = (c.vx / speed) * TARGET_SPEED;
+                    c.vy = (c.vy / speed) * TARGET_SPEED;
+                } else {
+                    const rAngle = Math.random() * Math.PI * 2;
+                    c.vx = Math.cos(rAngle) * TARGET_SPEED;
+                    c.vy = Math.sin(rAngle) * TARGET_SPEED;
+                }
+                
+                // Wall collisions
+                const dx = c.x - cx;
+                const dy = c.y - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist + c.radius > currentR) {
+                    const nx = dx / dist;
+                    const ny = dy / dist;
                     
-                    if (target.lives <= 0) {
-                        target.alive = false;
-                        target.eliminated = true;
-                        target.eliminationTime = elapsed;
+                    // Push inside
+                    c.x = cx + (currentR - c.radius) * nx;
+                    c.y = cy + (currentR - c.radius) * ny;
+                    
+                    // Reflect velocity
+                    const dot = c.vx * nx + c.vy * ny;
+                    if (dot > 0) {
+                        c.vx = c.vx - 2 * dot * nx;
+                        c.vy = c.vy - 2 * dot * ny;
+                        c.vx += (Math.random() - 0.5) * 0.5; // add noise
+                        c.vy += (Math.random() - 0.5) * 0.5;
                     }
+                }
+            });
+            
+            // Inter-particle collisions
+            for (let i = 0; i < active.length; i++) {
+                for (let j = i + 1; j < active.length; j++) {
+                    const c1 = active[i];
+                    const c2 = active[j];
                     
-                    lastHitTime = elapsed;
+                    const dx = c2.x - c1.x;
+                    const dy = c2.y - c1.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = c1.radius + c2.radius;
+                    
+                    if (dist < minDist && dist > 0.001) {
+                        // Resolve overlap
+                        const overlap = minDist - dist;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        
+                        c1.x -= nx * overlap / 2;
+                        c1.y -= ny * overlap / 2;
+                        c2.x += nx * overlap / 2;
+                        c2.y += ny * overlap / 2;
+                        
+                        // Elastic bounce
+                        const rvx = c2.vx - c1.vx;
+                        const rvy = c2.vy - c1.vy;
+                        const velAlongNormal = rvx * nx + rvy * ny;
+                        
+                        if (velAlongNormal < 0) {
+                            const jImpulse = -velAlongNormal; // Assuming equal mass
+                            const impulseX = jImpulse * nx;
+                            const impulseY = jImpulse * ny;
+                            
+                            c1.vx -= impulseX;
+                            c1.vy -= impulseY;
+                            c2.vx += impulseX;
+                            c2.vy += impulseY;
+                            
+                            c1.vx += (Math.random() - 0.5) * 0.5; // add noise
+                            c1.vy += (Math.random() - 0.5) * 0.5;
+                        }
+                        
+                        takeDamage(c1);
+                        takeDamage(c2);
+                    }
                 }
             }
             
-            contestants.forEach((c, i) => {
-                if (c.eliminated) {
-                    const timeSinceElim = elapsed - c.eliminationTime;
-                    c.opacity = Math.max(0, 1 - timeSinceElim / 500);
-                    c.scale = Math.max(0, 1 - timeSinceElim / 500);
-                }
-                
-                if (c.opacity <= 0) return;
-                
+            // Render Draw
+            active.forEach(c => {
                 ctx.save();
-                // ... similarly adapted inner loop omitting identical standard canvas rendering setup
+                ctx.translate(c.x, c.y);
+                
+                ctx.font = `${c.radius * 1.5}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(c.emoji, 0, 0);
+                
+                ctx.fillStyle = '#fff';
+
+                ctx.font = `bold ${Math.max(8, c.originalRadius * 0.4)}px Poppins`;
+                ctx.fillText(c.name, 0, c.radius + 5);
+                
                 ctx.restore();
             });
             
-            if (aliveCount === 1) {
-                const winnerContestant = contestants.find(c => c.isWinner);
+            if (active.length <= 1) {
+                const winnerContestant = active[0] || contestants.find(c => c.isWinner);
                 
                 ctx.save();
                 ctx.shadowColor = '#ffd700';
                 ctx.shadowBlur = 30;
                 ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 28px Poppins';
                 ctx.textAlign = 'center';
-                ctx.fillText('👑 SURVIVOR! 👑', width / 2, height - 40);
+                ctx.textBaseline = 'middle';
+                ctx.font = 'bold 36px Poppins';
+                ctx.fillText('👑 SURVIVOR! 👑', cx, cy - 60);
+                ctx.font = '64px Arial';
+                ctx.fillText(winnerContestant.emoji, cx, cy);
+                ctx.font = 'bold 28px Poppins';
+                ctx.fillText(winnerContestant.name, cx, cy + 60);
                 ctx.restore();
-                setTimeout(() => resolve(winner), 1500);
+                setTimeout(() => resolve(winner), 2000);
                 return;
             }
             
