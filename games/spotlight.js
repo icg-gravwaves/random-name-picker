@@ -171,7 +171,32 @@ export function runSpotlight(picker) {
                 spotlightRadius = 70;
             }
             
-            // ... omitting internal canvas draw spotlight and finishing loops logic for brevity exactly as in original implementation...
+            const gradient = ctx.createRadialGradient(spotlightX, spotlightY, 0, spotlightX, spotlightY, spotlightRadius);
+            gradient.addColorStop(0, 'rgba(255, 255, 200, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
+            
+            ctx.beginPath();
+            ctx.arc(spotlightX, spotlightY, spotlightRadius, 0, Math.PI * 2);
+            ctx.fillStyle = gradient;
+            ctx.fill();
+            
+            namePositions.forEach((pos, i) => {
+                const dx = pos.x - spotlightX;
+                const dy = pos.y - spotlightY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < spotlightRadius) {
+                    const intensity = 1 - (dist / spotlightRadius);
+                    ctx.globalAlpha = intensity;
+                    ctx.fillStyle = colors[i % colors.length];
+                    const fontSize = Math.round(16 * pos.fontScale);
+                    ctx.font = `bold ${fontSize}px Poppins`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(pos.name, pos.x, pos.y);
+                    ctx.globalAlpha = 1.0;
+                }
+            });
             
             if (phase === 'locked' && Date.now() - lockedTime > 1500) {
                 ctx.fillStyle = '#ffd700';
