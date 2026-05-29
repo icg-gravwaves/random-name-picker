@@ -13,42 +13,73 @@ export function drawRacePreview(picker) {
     const colors = UI_COLORS;
 
     const laneHeight = Math.min(60, (height - 100) / picker.names.length);
+    const trackHeight = picker.names.length * laneHeight;
+    const remainingSpace = height - trackHeight;
+    const skyHeight = remainingSpace * (2 / 3);
+    const grassHeight = remainingSpace * (1 / 3);
+    const trackY = skyHeight;
+    
     const startX = 80;
     const finishX = width - 100;
     
     ctx.fillStyle = '#87CEEB';
-    ctx.fillRect(0, 0, width, height * 0.6);
+    ctx.fillRect(0, 0, width, skyHeight);
     
     ctx.fillStyle = '#228B22';
-    ctx.fillRect(0, height * 0.6, width, height * 0.4);
+    ctx.fillRect(0, trackY + trackHeight, width, grassHeight);
     
+    // Draw Crowd & Grandstand
+    const grandstandY = trackY - 60;
+    ctx.fillStyle = '#4a5568';
+    ctx.fillRect(0, grandstandY, width, 30);
+    
+    // Draw Barrier
+    ctx.fillStyle = '#718096';
+    ctx.fillRect(0, trackY - 30, width, 30);
+    ctx.fillStyle = '#2d3748';
+    ctx.fillRect(0, trackY - 30, width, 2);
+    ctx.fillRect(0, trackY - 2, width, 2);
+    
+    const crowdColors = ['#ff6b6b', '#4ecdc4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fff', '#00b894', '#e17055'];
+    for (let i = 0; i < width; i += 12) {
+        const personIdx = i / 12;
+        ctx.fillStyle = crowdColors[personIdx % crowdColors.length];
+        ctx.beginPath(); ctx.arc(i + 6, grandstandY + 6, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = crowdColors[(personIdx + 3) % crowdColors.length];
+        ctx.beginPath(); ctx.arc(i + 12, grandstandY + 15, 3, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = crowdColors[(personIdx + 6) % crowdColors.length];
+        ctx.beginPath(); ctx.arc(i + 6, grandstandY + 24, 3, 0, Math.PI * 2); ctx.fill();
+    }
+
     ctx.fillStyle = '#d4a574';
-    ctx.fillRect(0, 30, width, height - 60);
+    ctx.fillRect(0, trackY, width, trackHeight);
     
     picker.names.forEach((_, i) => {
-        const y = 50 + i * laneHeight;
-        ctx.strokeStyle = '#fff';
-        ctx.setLineDash([10, 10]);
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        const y = trackY + i * laneHeight;
+        if (i > 0) {
+            ctx.strokeStyle = '#fff';
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
     });
     
     ctx.fillStyle = '#fff';
-    ctx.fillRect(startX - 5, 30, 10, height - 60);
+    ctx.fillRect(startX - 5, trackY, 10, trackHeight);
     
-    for (let i = 0; i < Math.ceil((height - 60) / 15); i++) {
+    for (let i = 0; i < Math.ceil(trackHeight / 15); i++) {
         for (let j = 0; j < 3; j++) {
             ctx.fillStyle = (i + j) % 2 === 0 ? '#000' : '#fff';
-            ctx.fillRect(finishX + j * 15, 30 + i * 15, 15, 15);
+            ctx.fillRect(finishX + j * 15, trackY + i * 15, 15, 15);
         }
     }
     
     picker.names.forEach((name, i) => {
         const x = startX;
-        const y = 50 + i * laneHeight + laneHeight / 2;
+        const y = trackY + i * laneHeight + laneHeight / 2;
         const weight = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
         
         ctx.save();
@@ -125,6 +156,12 @@ export function runRace(picker) {
         const colors = UI_COLORS;
         
         const laneHeight = Math.min(60, (height - 100) / picker.names.length);
+        const trackHeight = picker.names.length * laneHeight;
+        const remainingSpace = height - trackHeight;
+        const skyHeight = remainingSpace * (2 / 3);
+        const grassHeight = remainingSpace * (1 / 3);
+        const trackY = skyHeight;
+        
         const startX = 80;
         const finishX = width - 100;
         const raceDistance = finishX - startX;
@@ -147,7 +184,7 @@ export function runRace(picker) {
             return {
                 name,
                 x: startX,
-                y: 50 + i * laneHeight + laneHeight / 2,
+                y: trackY + i * laneHeight + laneHeight / 2,
                 progress: 0,
                 baseSpeed,
                 currentSpeed: 0,
@@ -168,34 +205,63 @@ export function runRace(picker) {
         const startTime = Date.now();
         const raceDuration = 20000 * picker.durationMultiplier;
         
-        const drawTrack = () => {
+        const drawTrack = (elapsed = 0) => {
             ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(0, 0, width, height * 0.6);
+            ctx.fillRect(0, 0, width, skyHeight);
             
             ctx.fillStyle = '#228B22';
-            ctx.fillRect(0, height * 0.6, width, height * 0.4);
+            ctx.fillRect(0, trackY + trackHeight, width, grassHeight);
             
+            // Draw Crowd & Grandstand
+            const grandstandY = trackY - 60;
+            ctx.fillStyle = '#4a5568';
+            ctx.fillRect(0, grandstandY, width, 30);
+            
+            // Draw Barrier
+            ctx.fillStyle = '#718096';
+            ctx.fillRect(0, trackY - 30, width, 30);
+            ctx.fillStyle = '#2d3748';
+            ctx.fillRect(0, trackY - 30, width, 2);
+            ctx.fillRect(0, trackY - 2, width, 2);
+            
+            const crowdColors = ['#ff6b6b', '#4ecdc4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fff', '#00b894', '#e17055'];
+            for (let i = 0; i < width; i += 12) {
+                const personIdx = i / 12;
+                const bounce1 = raceStarted ? Math.max(0, Math.sin(elapsed / 100 + i * 0.1) * 3) : 0;
+                const bounce2 = raceStarted ? Math.max(0, Math.sin(elapsed / 120 + i * 0.2) * 3) : 0;
+                const bounce3 = raceStarted ? Math.max(0, Math.sin(elapsed / 110 + i * 0.15) * 3) : 0;
+
+                ctx.fillStyle = crowdColors[personIdx % crowdColors.length];
+                ctx.beginPath(); ctx.arc(i + 6, grandstandY + 6 - bounce1, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = crowdColors[(personIdx + 3) % crowdColors.length];
+                ctx.beginPath(); ctx.arc(i + 12, grandstandY + 15 - bounce2, 3, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = crowdColors[(personIdx + 6) % crowdColors.length];
+                ctx.beginPath(); ctx.arc(i + 6, grandstandY + 24 - bounce3, 3, 0, Math.PI * 2); ctx.fill();
+            }
+
             ctx.fillStyle = '#d4a574';
-            ctx.fillRect(0, 30, width, height - 60);
+            ctx.fillRect(0, trackY, width, trackHeight);
             
             racers.forEach((_, i) => {
-                const y = 50 + i * laneHeight;
-                ctx.strokeStyle = '#fff';
-                ctx.setLineDash([10, 10]);
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                const y = trackY + i * laneHeight;
+                if (i > 0) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.setLineDash([10, 10]);
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(width, y);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
             });
             
             ctx.fillStyle = '#fff';
-            ctx.fillRect(startX - 5, 30, 10, height - 60);
+            ctx.fillRect(startX - 5, trackY, 10, trackHeight);
             
-            for (let i = 0; i < Math.ceil((height - 60) / 15); i++) {
+            for (let i = 0; i < Math.ceil(trackHeight / 15); i++) {
                 for (let j = 0; j < 3; j++) {
                     ctx.fillStyle = (i + j) % 2 === 0 ? '#000' : '#fff';
-                    ctx.fillRect(finishX + j * 15, 30 + i * 15, 15, 15);
+                    ctx.fillRect(finishX + j * 15, trackY + i * 15, 15, 15);
                 }
             }
         };
@@ -280,7 +346,7 @@ export function runRace(picker) {
             const elapsed = Date.now() - startTime;
             
             ctx.clearRect(0, 0, width, height);
-            drawTrack();
+            drawTrack(elapsed);
             
             if (!raceStarted) {
                 const countdownElapsed = elapsed / (1000 * picker.durationMultiplier);
