@@ -1,6 +1,7 @@
 import { UI_COLORS } from '../constants.js';
 
 export const RACER_EMOJIS = ['🐎', '🚗', '🐢', '🚀', '🏃', '🐇', '🦊', '🐕', '🚲', '🛵'];
+export const crowdColors = ['#ff6b6b', '#4ecdc4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fff', '#00b894', '#e17055'];
 
 export function drawRacePreview(picker) {
     if (picker.names.length === 0) return;
@@ -40,7 +41,7 @@ export function drawRacePreview(picker) {
     ctx.fillRect(0, trackY - 30, width, 2);
     ctx.fillRect(0, trackY - 2, width, 2);
     
-    const crowdColors = ['#ff6b6b', '#4ecdc4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fff', '#00b894', '#e17055'];
+    
     for (let i = 0; i < width; i += 12) {
         const personIdx = i / 12;
         ctx.fillStyle = crowdColors[personIdx % crowdColors.length];
@@ -224,7 +225,6 @@ export function runRace(picker) {
             ctx.fillRect(0, trackY - 30, width, 2);
             ctx.fillRect(0, trackY - 2, width, 2);
             
-            const crowdColors = ['#ff6b6b', '#4ecdc4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fff', '#00b894', '#e17055'];
             for (let i = 0; i < width; i += 12) {
                 const personIdx = i / 12;
                 const bounce1 = raceStarted ? Math.max(0, Math.sin(elapsed / 100 + i * 0.1) * 3) : 0;
