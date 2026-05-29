@@ -43,8 +43,7 @@ export function drawBattlePreview(picker) {
     const cy = height / 2 + 20;
     const num = picker.names.length;
     const maxR = Math.min(width, height - 60) / 2 - 20;
-    const ratio = Math.min(1, Math.max(0.1, num / 20));
-    const R = Math.max(80, maxR * Math.sqrt(ratio));
+    const R = maxR;
     
     // Draw Arena
     ctx.beginPath();
@@ -99,8 +98,7 @@ export function runBattleRoyale(picker) {
         const cy = height / 2 + 20;
         const num = picker.names.length;
         const maxR = Math.min(width, height - 60) / 2 - 20;
-        const initialRatio = Math.min(1, Math.max(0.1, num / 20));
-        const currentR = Math.max(80, maxR * Math.sqrt(initialRatio));
+        let currentR = maxR;
         
         const maxRadius = Math.max(15, Math.min(35, (currentR * Math.PI) / num * 0.8));
         const TARGET_SPEED = 5 / (picker.durationMultiplier || 1);
@@ -139,6 +137,10 @@ export function runBattleRoyale(picker) {
             ctx.fillRect(0, 0, width, height);
             
             const active = contestants.filter(c => c.alive);
+            
+            // Shrink arena based on active combatants
+            const targetR = Math.max(60, maxR * Math.sqrt(active.length / num));
+            currentR += (targetR - currentR) * 0.02; // Smoothly close in
             
             ctx.fillStyle = '#ff6b6b';
             ctx.font = 'bold 24px Poppins';
