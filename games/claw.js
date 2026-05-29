@@ -1,4 +1,6 @@
-import { UI_COLORS, ANIMAL_EMOJIS } from '../constants.js';
+import { UI_COLORS } from '../constants.js';
+
+export const ANIMAL_EMOJIS = ['🐻', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🐰', '🦊', '🐶', '🐱', '🐮', '🐔', '🐧', '🐺', '🐹', '🦉', '🐦', '🐤', '🐙', '🐝', '🐢'];
 
 export function drawClawPreview(picker) {
     if (picker.names.length === 0) return;

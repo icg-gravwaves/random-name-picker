@@ -1,4 +1,6 @@
-import { UI_COLORS, RACER_EMOJIS } from '../constants.js';
+import { UI_COLORS } from '../constants.js';
+
+export const RACER_EMOJIS = ['🐎', '🚗', '🐢', '🚀', '🏃', '🐇', '🦊', '🐕', '🚲', '🛵'];
 
 export function drawRacePreview(picker) {
     if (picker.names.length === 0) return;
