@@ -159,9 +159,10 @@ export function runRace(picker) {
         });
         
         let raceStarted = false;
-        let countdown = 3;
+        let countdown = 4;
         let raceFinished = false;
         let finishCounter = 0;
+        let resolveQueued = false;
         const startTime = Date.now();
         const raceDuration = 20000 * picker.durationMultiplier;
         
@@ -261,6 +262,8 @@ export function runRace(picker) {
             ctx.fillRect(-30, -35, 60, 18);
             ctx.fillStyle = '#000';
             ctx.font = 'bold 10px Poppins';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
             ctx.fillText(racer.name, 0, -26);
             
             ctx.restore();
@@ -271,7 +274,92 @@ export function runRace(picker) {
                 resolve(null);
                 return;
             }
-            // ... omitting lengthy internal animate calculations for brevity to match remaining logic exactly...
+            
+            const elapsed = Date.now() - startTime;
+            
+            ctx.clearRect(0, 0, width, height);
+            drawTrack();
+            
+            if (!raceStarted) {
+                const countdownElapsed = elapsed / (1000 * picker.durationMultiplier);
+                const currentCount = 3 - Math.floor(countdownElapsed);
+                
+                racers.forEach(drawRacer);
+                
+                if (currentCount !== countdown && currentCount >= 0) {
+                    countdown = currentCount;
+                    if (!picker.animationCancelled) {
+                        picker.sound.playCountdown(countdown);
+                    }
+                }
+                
+                if (currentCount < 0) {
+                    raceStarted = true;
+                } else {
+                    ctx.save();
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(0, 0, width, height);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 120px Poppins';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.shadowBlur = 10;
+                    ctx.fillText(currentCount === 0 ? 'GO!' : currentCount.toString(), width / 2, height / 2);
+                    ctx.restore();
+                }
+            } else {
+                const speedFactor = (raceDistance / 100) / picker.durationMultiplier;
+                
+                racers.forEach((racer) => {
+                    if (!racer.finished) {
+                        const variationIndex = Math.floor(elapsed / 200) % racer.speedVariations.length;
+                        const variation = racer.speedVariations[variationIndex];
+                        racer.currentSpeed = racer.baseSpeed * variation * speedFactor;
+                        
+                        racer.x += racer.currentSpeed;
+                        
+                        if (racer.x >= finishX) {
+                            racer.x = finishX;
+                            racer.finished = true;
+                            finishCounter++;
+                            racer.finishOrder = finishCounter;
+                        }
+                    }
+                    drawRacer(racer);
+                });
+                
+                if (finishCounter >= racers.length) {
+                    raceFinished = true;
+                }
+            }
+            
+            if (raceFinished) {
+                ctx.save();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, width, height);
+                
+                ctx.shadowColor = '#ffd700';
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = '#ffd700';
+                ctx.font = 'bold 48px Poppins';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(isLoserMode ? '🐌 LAST PLACE! 🐌' : '🏆 WINNER! 🏆', width / 2, height / 2 - 30);
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 36px Poppins';
+                ctx.fillText(picked, width / 2, height / 2 + 30);
+                ctx.restore();
+
+                if (!resolveQueued) {
+                    resolveQueued = true;
+                    setTimeout(() => resolve(picked), 2000);
+                }
+            } else {
+                requestAnimationFrame(animate);
+            }
         };
         
         animate();
