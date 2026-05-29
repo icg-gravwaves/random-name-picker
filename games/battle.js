@@ -71,7 +71,6 @@ export function runBattleRoyale(picker) {
         
         const maxRadius = Math.max(15, Math.min(35, (currentR * Math.PI) / num * 0.8));
         const TARGET_SPEED = 5 / (picker.durationMultiplier || 1);
-        const sizeLoss = maxRadius * 0.10; // 10% of original size
         
         const contestants = picker.names.map((name, i) => {
             const angle = (i / num) * Math.PI * 2;
@@ -83,11 +82,13 @@ export function runBattleRoyale(picker) {
                 emoji: FIGHTER_EMOJIS[i % FIGHTER_EMOJIS.length],
                 radius: maxRadius,
                 originalRadius: maxRadius,
+                health: 100,
                 x: cx + (currentR - maxRadius - 10) * Math.cos(angle),
                 y: cy + (currentR - maxRadius - 10) * Math.sin(angle),
                 vx: Math.cos(rAngle) * TARGET_SPEED,
                 vy: Math.sin(rAngle) * TARGET_SPEED,
-                alive: true
+                alive: true,
+                deathTime: null
             };
         });
         
@@ -122,13 +123,16 @@ export function runBattleRoyale(picker) {
             ctx.fill();
             
             const takeDamage = (c) => {
-                if (c.isWinner && c.radius <= sizeLoss * 2) {
+                if (c.isWinner && c.health <= 20) {
                     // Keep winner at minimum 2 hits of health so they can outlive the final opponent
-                    c.radius = sizeLoss * 2;
+                    c.health = 20;
                     return;
                 }
-                c.radius -= sizeLoss;
-                if (c.radius <= 0) c.alive = false;
+                c.health -= 10;
+                if (c.health <= 0 && c.alive) {
+                    c.alive = false;
+                    c.deathTime = Date.now();
+                }
             };
             
             // Apply physics: Move, Collide, Resolve
@@ -219,6 +223,28 @@ export function runBattleRoyale(picker) {
             }
             
             // Render Draw
+            contestants.filter(c => !c.alive).forEach(c => {
+                if (!c.deathTime) return;
+                const timeSinceDeath = Date.now() - c.deathTime;
+                if (timeSinceDeath > 2000) return;
+                
+                ctx.save();
+                ctx.translate(c.x, c.y);
+                ctx.globalAlpha = 0.5 * (1 - timeSinceDeath / 2000);
+                
+                ctx.font = `${c.radius * 1.5}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('💀', 0, 0);
+                
+                ctx.fillStyle = '#fff';
+                const fontSize = Math.max(8, c.originalRadius * 0.4);
+                ctx.font = `bold ${fontSize}px Poppins`;
+                ctx.fillText(c.name, 0, c.radius + 5);
+                
+                ctx.restore();
+            });
+            
             active.forEach(c => {
                 ctx.save();
                 ctx.translate(c.x, c.y);
@@ -229,9 +255,23 @@ export function runBattleRoyale(picker) {
                 ctx.fillText(c.emoji, 0, 0);
                 
                 ctx.fillStyle = '#fff';
-
-                ctx.font = `bold ${Math.max(8, c.originalRadius * 0.4)}px Poppins`;
+                const fontSize = Math.max(8, c.originalRadius * 0.4);
+                ctx.font = `bold ${fontSize}px Poppins`;
                 ctx.fillText(c.name, 0, c.radius + 5);
+                
+                const barWidth = c.radius * 1.5;
+                const barHeight = 4;
+                const barY = c.radius + fontSize / 2 + 8;
+                
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
+                
+                const healthRatio = Math.max(0, c.health) / 100;
+                if (healthRatio > 0.5) ctx.fillStyle = '#2ecc71';
+                else if (healthRatio > 0.25) ctx.fillStyle = '#f1c40f';
+                else ctx.fillStyle = '#e74c3c';
+                
+                ctx.fillRect(-barWidth / 2, barY, barWidth * healthRatio, barHeight);
                 
                 ctx.restore();
             });
