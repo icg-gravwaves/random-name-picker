@@ -1,18 +1,20 @@
 import { SLOT_ITEM_HEIGHT } from '../constants.js';
+import { getSliceAngles } from './wheel.js';
 
 export function setupSlots(picker) {
     picker.slotReel.innerHTML = '';
     
-    let weightedNames = picker.names.length > 0
-        ? picker.buildWeightedArray((name) => name)
-        : ['Add names...'];
+    let baseNames = [];
+    if (picker.names.length > 0) {
+        baseNames = getSliceAngles(picker).map(slice => slice.name);
+    } else {
+        baseNames = ['Add names...'];
+    }
     
-    weightedNames = weightedNames.sort(() => Math.random() - 0.5);
-    
-    const repeats = Math.ceil(50 / weightedNames.length);
+    const repeats = Math.ceil(50 / baseNames.length);
     const displayNames = [];
     for (let r = 0; r < repeats; r++) {
-        displayNames.push(...weightedNames);
+        displayNames.push(...baseNames);
     }
     
     displayNames.forEach(name => {

@@ -1,27 +1,75 @@
-import { WHEEL_COLORS } from '../constants.js';
-
-export function getTotalWeight(picker) {
-    if (!picker.weightsEnabled) return picker.names.length;
-    return picker.weights.reduce((sum, w, i) => i < picker.names.length ? sum + (w || 1) : sum, 0);
-}
+export const WHEEL_COLORS = [
+ '#df3500',
+ '#0045ff',
+ '#008a00',
+ '#f36dff',
+ '#710082',
+ '#8eef04',
+ '#00bec2',
+ '#ff9a39',
+ '#5d3d00',
+ '#08008a',
+ '#005d5d',
+ '#a28282',
+ '#a2aeff',
+ '#8ab275',
+ '#aa18ff',
+ '#490008',
+ '#ffaebe',
+ '#df0096',
+ '#69ffc6',
+ '#002d00',
+ '#9e7500',
+ '#39313d',
+ '#f3eb92',
+ '#65658e',
+ '#8a3d4d'
+];
 
 export function getSliceAngles(picker) {
-    const totalWeight = getTotalWeight(picker);
+    if (picker.names.length === 0) return [];
+    
+    const personCounts = picker.names.map((name, i) => {
+        const weight = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
+        return { name, index: i, weight };
+    });
+    
+    let finalSegments = picker.names.map((name, i) => ({ name, index: i }));
+    
+    personCounts.forEach((p, i) => {
+        let extra = p.weight - 1;
+        let currentPos = i;
+        for (let n = 1; n <= extra; n++) {
+            currentPos += 2;
+            if (currentPos > finalSegments.length) {
+                currentPos = currentPos % finalSegments.length;
+            }
+            finalSegments.splice(currentPos, 0, { name: p.name, index: p.index });
+        }
+    });
+    
+    const minSegments = 8;
+    if (finalSegments.length > 0 && finalSegments.length < minSegments) {
+        const originalSegments = [...finalSegments];
+        while (finalSegments.length < minSegments) {
+            finalSegments.push(...originalSegments);
+        }
+    }
+
     const angles = [];
+    const sliceAngle = (2 * Math.PI) / finalSegments.length;
     let currentAngle = 0;
     
-    picker.names.forEach((name, i) => {
-        const weight = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
-        const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
+    finalSegments.forEach(seg => {
         angles.push({
             start: currentAngle,
             end: currentAngle + sliceAngle,
-            name: name,
-            index: i
+            name: seg.name,
+            index: seg.index
         });
         currentAngle += sliceAngle;
     });
-    
+
     return angles;
 }
 
@@ -64,7 +112,7 @@ export function drawWheel(picker, rotation = 0) {
     ctx.rotate(rotation);
     ctx.translate(-centerX, -centerY);
 
-    sliceAngles.forEach((slice, i) => {
+    sliceAngles.forEach((slice) => {
         const startAngle = slice.start;
         const endAngle = slice.end;
         const sliceAngle = endAngle - startAngle;
@@ -73,7 +121,7 @@ export function drawWheel(picker, rotation = 0) {
         ctx.moveTo(centerX, centerY);
         ctx.arc(centerX, centerY, radius, startAngle, endAngle);
         ctx.closePath();
-        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillStyle = colors[slice.index % colors.length];
         ctx.fill();
         ctx.strokeStyle = '#1e293b';
         ctx.lineWidth = 2;

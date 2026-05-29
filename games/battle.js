@@ -2,6 +2,27 @@ import { UI_COLORS } from '../constants.js';
 
 const FIGHTER_EMOJIS = ['🥷', '🦸', '🧟', '🧛', '🧙', '🧝', '🧞', '🤺', '🤼', '🥊', '🥋', '🤖', '👾', '👹', '👺'];
 
+function getDisplayName(name, weight, weightsEnabled) {
+    if (!weightsEnabled || weight <= 1) return name;
+    
+    const extra = weight - 1;
+    const leftCount = Math.floor(extra / 2) + (extra % 2 !== 0 && extra > 1 ? 1 : 0);
+    const rightCount = extra - leftCount;
+    
+    const getSwords = (count, isLeft) => {
+        const crosses = Math.floor(count / 2);
+        const singles = count % 2;
+        const crossStr = '⚔️'.repeat(crosses);
+        const singleStr = singles ? '🗡️' : '';
+        return isLeft ? crossStr + singleStr : singleStr + crossStr;
+    };
+    
+    const leftStr = getSwords(leftCount, true);
+    const rightStr = getSwords(rightCount, false);
+    
+    return (leftStr ? leftStr + ' ' : '') + name + (rightStr ? ' ' + rightStr : '');
+}
+
 export function drawBattlePreview(picker) {
     if (picker.names.length === 0) return;
     
@@ -27,7 +48,14 @@ export function drawBattlePreview(picker) {
     
     // Draw Arena
     ctx.beginPath();
-    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    for (let i = 0; i < 6; i++) {
+        const a = i * Math.PI / 3;
+        const px = cx + R * Math.cos(a);
+        const py = cy + R * Math.sin(a);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
     ctx.strokeStyle = '#ff6b6b';
     ctx.lineWidth = 4;
     ctx.stroke();
@@ -35,21 +63,26 @@ export function drawBattlePreview(picker) {
     ctx.fill();
     
     const maxRadius = Math.max(15, Math.min(35, (R * Math.PI) / num * 0.8));
+    const apothem = R * Math.cos(Math.PI / 6);
     
     picker.names.forEach((name, i) => {
         const angle = (i / num) * Math.PI * 2;
-        const x = cx + (R - maxRadius - 10) * Math.cos(angle);
-        const y = cy + (R - maxRadius - 10) * Math.sin(angle);
+        const x = cx + (apothem - maxRadius - 10) * Math.cos(angle);
+        const y = cy + (apothem - maxRadius - 10) * Math.sin(angle);
         const emoji = FIGHTER_EMOJIS[i % FIGHTER_EMOJIS.length];
+        const weight = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
         
-        ctx.font = `${maxRadius * 1.5}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        
+        ctx.font = `${maxRadius * 1.5}px Arial`;
         ctx.fillText(emoji, x, y);
+        
+        const displayName = getDisplayName(name, weight, picker.weightsEnabled);
         
         ctx.fillStyle = '#fff';
         ctx.font = `bold ${Math.max(8, maxRadius * 0.4)}px Poppins`;
-        ctx.fillText(name, x, y + maxRadius + 5);
+        ctx.fillText(displayName, x, y + maxRadius + 5);
     });
 }
 
@@ -67,7 +100,7 @@ export function runBattleRoyale(picker) {
         const num = picker.names.length;
         const maxR = Math.min(width, height - 60) / 2 - 20;
         const initialRatio = Math.min(1, Math.max(0.1, num / 20));
-        let currentR = Math.max(80, maxR * Math.sqrt(initialRatio));
+        const currentR = Math.max(80, maxR * Math.sqrt(initialRatio));
         
         const maxRadius = Math.max(15, Math.min(35, (currentR * Math.PI) / num * 0.8));
         const TARGET_SPEED = 5 / (picker.durationMultiplier || 1);
@@ -75,6 +108,8 @@ export function runBattleRoyale(picker) {
         const contestants = picker.names.map((name, i) => {
             const angle = (i / num) * Math.PI * 2;
             const rAngle = Math.random() * Math.PI * 2;
+            const weight = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
+            const apothem = currentR * Math.cos(Math.PI / 6);
             
             return {
                 name,
@@ -83,8 +118,9 @@ export function runBattleRoyale(picker) {
                 radius: maxRadius,
                 originalRadius: maxRadius,
                 health: 100,
-                x: cx + (currentR - maxRadius - 10) * Math.cos(angle),
-                y: cy + (currentR - maxRadius - 10) * Math.sin(angle),
+                weight,
+                x: cx + (apothem - maxRadius - 10) * Math.cos(angle),
+                y: cy + (apothem - maxRadius - 10) * Math.sin(angle),
                 vx: Math.cos(rAngle) * TARGET_SPEED,
                 vy: Math.sin(rAngle) * TARGET_SPEED,
                 alive: true,
@@ -104,10 +140,6 @@ export function runBattleRoyale(picker) {
             
             const active = contestants.filter(c => c.alive);
             
-            // Shrink circle based on active combatants
-            const targetR = Math.max(60, maxR * Math.sqrt(initialRatio * (active.length / num)));
-            currentR += (targetR - currentR) * 0.02; // Smoothly close in
-            
             ctx.fillStyle = '#ff6b6b';
             ctx.font = 'bold 24px Poppins';
             ctx.textAlign = 'center';
@@ -115,20 +147,25 @@ export function runBattleRoyale(picker) {
             
             // Draw Arena
             ctx.beginPath();
-            ctx.arc(cx, cy, currentR, 0, Math.PI * 2);
+            for (let j = 0; j < 6; j++) {
+                const a = j * Math.PI / 3;
+                const px = cx + currentR * Math.cos(a);
+                const py = cy + currentR * Math.sin(a);
+                if (j === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
             ctx.strokeStyle = '#ff6b6b';
             ctx.lineWidth = 4;
             ctx.stroke();
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.fill();
             
-            const takeDamage = (c) => {
+            const takeDamage = (c, damage) => {
+                c.health -= damage;
                 if (c.isWinner && c.health <= 20) {
-                    // Keep winner at minimum 2 hits of health so they can outlive the final opponent
                     c.health = 20;
-                    return;
                 }
-                c.health -= 10;
                 if (c.health <= 0 && c.alive) {
                     c.alive = false;
                     c.deathTime = Date.now();
@@ -151,26 +188,32 @@ export function runBattleRoyale(picker) {
                     c.vy = Math.sin(rAngle) * TARGET_SPEED;
                 }
                 
-                // Wall collisions
+                // Wall collisions (Hexagon)
                 const dx = c.x - cx;
                 const dy = c.y - cy;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                const apothem = currentR * Math.cos(Math.PI / 6);
                 
-                if (dist + c.radius > currentR) {
-                    const nx = dx / dist;
-                    const ny = dy / dist;
+                for (let j = 0; j < 6; j++) {
+                    const normalAngle = j * Math.PI / 3 + Math.PI / 6;
+                    const nx = Math.cos(normalAngle);
+                    const ny = Math.sin(normalAngle);
                     
-                    // Push inside
-                    c.x = cx + (currentR - c.radius) * nx;
-                    c.y = cy + (currentR - c.radius) * ny;
-                    
-                    // Reflect velocity
-                    const dot = c.vx * nx + c.vy * ny;
-                    if (dot > 0) {
-                        c.vx = c.vx - 2 * dot * nx;
-                        c.vy = c.vy - 2 * dot * ny;
-                        c.vx += (Math.random() - 0.5) * 0.5; // add noise
-                        c.vy += (Math.random() - 0.5) * 0.5;
+                    const distAlongNormal = dx * nx + dy * ny;
+                    if (distAlongNormal + c.radius > apothem) {
+                        const overlap = distAlongNormal + c.radius - apothem;
+                        
+                        // Push inside
+                        c.x -= overlap * nx;
+                        c.y -= overlap * ny;
+                        
+                        // Reflect velocity
+                        const dot = c.vx * nx + c.vy * ny;
+                        if (dot > 0) {
+                            c.vx = c.vx - 2 * dot * nx;
+                            c.vy = c.vy - 2 * dot * ny;
+                            c.vx += (Math.random() - 0.5) * 0.5; // add noise
+                            c.vy += (Math.random() - 0.5) * 0.5;
+                        }
                     }
                 }
             });
@@ -216,8 +259,11 @@ export function runBattleRoyale(picker) {
                             c1.vy += (Math.random() - 0.5) * 0.5;
                         }
                         
-                        takeDamage(c1);
-                        takeDamage(c2);
+                        const dmgFrom1 = Math.floor(5 + Math.random() * 11) + (c1.weight > 1 ? (c1.weight > 2 ? 20 : 10) : 0);
+                        const dmgFrom2 = Math.floor(5 + Math.random() * 11) + (c2.weight > 1 ? (c2.weight > 2 ? 20 : 10) : 0);
+                        
+                        takeDamage(c1, dmgFrom2);
+                        takeDamage(c2, dmgFrom1);
                     }
                 }
             }
@@ -237,10 +283,12 @@ export function runBattleRoyale(picker) {
                 ctx.textBaseline = 'middle';
                 ctx.fillText('💀', 0, 0);
                 
+                const displayName = getDisplayName(c.name, c.weight, picker.weightsEnabled);
+                
                 ctx.fillStyle = '#fff';
                 const fontSize = Math.max(8, c.originalRadius * 0.4);
                 ctx.font = `bold ${fontSize}px Poppins`;
-                ctx.fillText(c.name, 0, c.radius + 5);
+                ctx.fillText(displayName, 0, c.radius + 5);
                 
                 ctx.restore();
             });
@@ -254,10 +302,12 @@ export function runBattleRoyale(picker) {
                 ctx.textBaseline = 'middle';
                 ctx.fillText(c.emoji, 0, 0);
                 
+                const displayName = getDisplayName(c.name, c.weight, picker.weightsEnabled);
+                
                 ctx.fillStyle = '#fff';
                 const fontSize = Math.max(8, c.originalRadius * 0.4);
                 ctx.font = `bold ${fontSize}px Poppins`;
-                ctx.fillText(c.name, 0, c.radius + 5);
+                ctx.fillText(displayName, 0, c.radius + 5);
                 
                 const barWidth = c.radius * 1.5;
                 const barHeight = 4;
