@@ -72,6 +72,14 @@ export function drawClawPreview(picker) {
     
     const clawX = width / 2;
     const clawY = 50;
+    
+    ctx.beginPath();
+    ctx.moveTo(clawX, 0);
+    ctx.lineTo(clawX, clawY - 50);
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
     ctx.save();
     ctx.translate(clawX, clawY);
     ctx.fillStyle = '#888';
@@ -177,6 +185,13 @@ export function runClawMachine(picker) {
         let grabQueued = false;
         
         const drawClaw = (x, y, open, holding) => {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, y - 50);
+            ctx.strokeStyle = '#555';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
             ctx.save();
             ctx.translate(x, y);
             
@@ -265,13 +280,14 @@ export function runClawMachine(picker) {
             ctx.closePath();
             ctx.fill();
             
+            const speedFactor = 1 / picker.durationMultiplier;
+
             animals.forEach((animal, i) => {
                 if (animal !== claw.grabbedAnimal) {
                     drawAnimal(animal);
                 }
             });
             
-            const speedFactor = 1 / picker.durationMultiplier;
             switch (claw.state) {
                 case 'moving':
                     const moveSpeed = 3 * speedFactor;
@@ -314,6 +330,7 @@ export function runClawMachine(picker) {
                         claw.grabbedAnimal.y = claw.y + 50;
                     }
                     if (claw.y <= 50) {
+                        claw.y = 50;
                         if (claw.grabbedAnimal) {
                             claw.state = 'moveToChute';
                         } else {
@@ -321,6 +338,7 @@ export function runClawMachine(picker) {
                             targetAnimal = animals[targetAnimalIndex];
                             winner = targetAnimal.name;
                             claw.targetX = targetAnimal.x;
+                            claw.openAngle = 0.5;
                             claw.state = 'moving';
                         }
                     }
