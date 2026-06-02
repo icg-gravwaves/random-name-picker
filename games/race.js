@@ -1,4 +1,5 @@
 import { UI_COLORS } from '../constants.js';
+import { drawEmojiBadge } from './emoji-badge.js';
 
 export const RACER_EMOJIS = ['🐎', '🚗', '🐢', '🚀', '🏃', '🐇', '🦊', '🐕', '🚲', '🛵'];
 export const crowdColors = ['#ff6b6b', '#4ecdc4', '#ffeaa7', '#fd79a8', '#a29bfe', '#fff', '#00b894', '#e17055'];
@@ -82,6 +83,9 @@ export function drawRacePreview(picker) {
         const x = startX;
         const y = trackY + i * laneHeight + laneHeight / 2;
         const weight = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
+        const emoji = racerEmojis[i % racerEmojis.length];
+        const noFlipEmojis = ['🚀'];
+        const shouldFlip = !noFlipEmojis.includes(emoji);
         
         ctx.save();
         ctx.translate(x, y);
@@ -115,34 +119,18 @@ export function drawRacePreview(picker) {
                 ctx.fillText('W', ballX, 0);
             }
         }
-        
-        ctx.fillStyle = '#fff';
+
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
         ctx.beginPath();
-        ctx.arc(0, 0, 22, 0, Math.PI * 2);
+        ctx.ellipse(0, 15, 20, 8, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = colors[i % colors.length];
-        ctx.lineWidth = 3;
-        ctx.stroke();
         
-        const noFlipEmojis = ['🚀'];
-        const emoji = racerEmojis[i % racerEmojis.length];
-        ctx.save();
-        if (!noFlipEmojis.includes(emoji)) {
-            ctx.scale(-1, 1);
-        }
-        ctx.font = '28px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(emoji, 0, 0);
-        ctx.restore();
-        
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.fillRect(-30, -35, 60, 18);
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 10px Poppins';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(name, 0, -26);
+        drawEmojiBadge(ctx, 0, 0, emoji, colors[i % colors.length], 34, {
+            label: name,
+            labelFontSize: 12,
+            labelPosition: 'bottom',
+            flipEmoji: shouldFlip
+        });
         
         ctx.restore();
     });
@@ -203,8 +191,23 @@ export function runRace(picker) {
         let raceFinished = false;
         let finishCounter = 0;
         let resolveQueued = false;
+        let resultComplete = false;
+        let resultAnimStarted = false;
+        let resultProgress = 0;
+        let resultStartX = 0;
+        let resultStartY = 0;
         const startTime = Date.now();
         const raceDuration = 20000 * picker.durationMultiplier;
+        const pickedRacer = racers[pickedIndex];
+        
+        const getOrdinal = (n) => {
+            if (n === 11 || n === 12 || n === 13) return n + "th";
+            const lastDigit = n % 10;
+            if (lastDigit === 1) return n + "st";
+            if (lastDigit === 2) return n + "nd";
+            if (lastDigit === 3) return n + "rd";
+            return n + "th";
+        };
         
         const drawTrack = (elapsed = 0) => {
             ctx.fillStyle = '#87CEEB';
@@ -305,34 +308,26 @@ export function runRace(picker) {
             ctx.ellipse(0, 15, 20, 8, 0, 0, Math.PI * 2);
             ctx.fill();
             
-            ctx.fillStyle = '#fff';
-            ctx.beginPath();
-            ctx.arc(0, 0, 22, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = racer.color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            
             const noFlipEmojis = ['🚀'];
             const shouldFlip = !noFlipEmojis.includes(racer.emoji);
+            drawEmojiBadge(ctx, 0, 0, racer.emoji, racer.color, 34, {
+                label: racer.name,
+                labelFontSize: 12,
+                labelPosition: 'bottom',
+                flipEmoji: shouldFlip
+            });
             
-            ctx.save();
-            if (shouldFlip) {
-                ctx.scale(-1, 1);
+            if (racer.finished && racer.finishOrder > 0) {
+                ctx.save();
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 20px Poppins';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(getOrdinal(racer.finishOrder), 55, 0);
+                ctx.restore();
             }
-            ctx.font = '28px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(racer.emoji, 0, 0);
-            ctx.restore();
-            
-            ctx.fillStyle = racer.color;
-            ctx.fillRect(-30, -35, 60, 18);
-            ctx.fillStyle = '#000';
-            ctx.font = 'bold 10px Poppins';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(racer.name, 0, -26);
             
             ctx.restore();
         };
@@ -340,6 +335,9 @@ export function runRace(picker) {
         const animate = () => {
             if (picker.animationCancelled) {
                 resolve(null);
+                return;
+            }
+            if (resultComplete) {
                 return;
             }
             
@@ -403,28 +401,63 @@ export function runRace(picker) {
             }
             
             if (raceFinished) {
+                if (!resultAnimStarted) {
+                    resultAnimStarted = true;
+                    resultStartX = pickedRacer.x;
+                    resultStartY = pickedRacer.y;
+                }
+
+                resultProgress = Math.min(1, resultProgress + 0.045);
+                const easeOut = 1 - Math.pow(1 - resultProgress, 3);
+
+                const centerX = width / 2;
+                const centerY = height / 2 + 20;
+                const animX = resultStartX + (centerX - resultStartX) * easeOut;
+                const animY = resultStartY + (centerY - resultStartY) * easeOut;
+
                 ctx.save();
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
                 ctx.fillRect(0, 0, width, height);
-                
+
+                // Bring the selected loser to center and turn their style gold.
+                const noFlipEmojis = ['🚀'];
+                const shouldFlip = !noFlipEmojis.includes(pickedRacer.emoji);
+                const scale = 1;
+
+                ctx.translate(animX, animY);
+                ctx.scale(scale, scale);
+
+                ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                ctx.beginPath();
+                ctx.ellipse(0, 15, 20, 8, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                const labelMetrics = drawEmojiBadge(ctx, 0, 0, pickedRacer.emoji, '#ffd700', 34, {
+                    label: pickedRacer.name,
+                    labelFontSize: 12,
+                    labelPosition: 'bottom',
+                    flipEmoji: shouldFlip
+                });
+
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.shadowColor = '#ffd700';
                 ctx.shadowBlur = 20;
                 ctx.fillStyle = '#ffd700';
                 ctx.font = 'bold 48px Poppins';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(isLoserMode ? '🐌 LAST PLACE! 🐌' : '🏆 WINNER! 🏆', width / 2, height / 2 - 30);
-                
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 36px Poppins';
-                ctx.fillText(picked, width / 2, height / 2 + 30);
+                const bannerY = animY + (labelMetrics.labelBottom + 28) * scale;
+                ctx.fillText(isLoserMode ? '🐌 LAST PLACE! 🐌' : '🏆 WINNER! 🏆', width / 2, bannerY);
                 ctx.restore();
 
                 if (!resolveQueued) {
                     resolveQueued = true;
-                    setTimeout(() => resolve(picked), 2000);
+                    setTimeout(() => {
+                        resultComplete = true;
+                        resolve(picked);
+                    }, 2000);
                 }
+                requestAnimationFrame(animate);
             } else {
                 requestAnimationFrame(animate);
             }

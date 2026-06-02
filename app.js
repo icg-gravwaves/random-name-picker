@@ -153,6 +153,27 @@ class SoundEngine {
         this.playReveal();
     }
 
+    async playSadTrombone() {
+        this.resume();
+        if (!this.ctx) return;
+
+        try {
+            const buffer = await this.loadBuffer('sad-trombone', 'sounds/womp_womp.mp3');
+            if (buffer) {
+                this.playBuffer(buffer, { volume: 0.7 });
+                return;
+            }
+        } catch (_) {
+            // Fall through to synthesized fallback
+        }
+
+        // Fallback: synthesized sad trombone if file is missing
+        this.playTone({ frequency: 220, duration: 0.22, type: 'sawtooth', volume: 0.14 });
+        this.playTone({ frequency: 196, duration: 0.24, type: 'sawtooth', volume: 0.14, delay: 0.18 });
+        this.playTone({ frequency: 174, duration: 0.28, type: 'sawtooth', volume: 0.14, delay: 0.38 });
+        this.playTone({ frequency: 146, duration: 0.45, type: 'sawtooth', volume: 0.16, delay: 0.62 });
+    }
+
     async playApplause() {
         this.resume();
         if (!this.ctx) return;
@@ -174,6 +195,7 @@ class SoundEngine {
         }
         this.playNoise({ duration: 0.9, volume: 0.05, band: 400, delay: 0.1 });
     }
+
 }
 
 class RandomNamePicker {
@@ -582,7 +604,11 @@ class RandomNamePicker {
         if (!this.animationCancelled) {
             this.winnerName.textContent = winner;
             this.lastWinner = winner;
-            this.sound.playApplause();
+            if (this.currentAnimation === 'race' || this.currentAnimation === 'spotlight') {
+                this.sound.playSadTrombone();
+            } else {
+                this.sound.playApplause();
+            }
             this.showModal();
             this.launchConfetti();
         } else {

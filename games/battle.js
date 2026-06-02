@@ -1,4 +1,5 @@
 import { UI_COLORS } from '../constants.js';
+import { drawEmojiBadge, drawEmojiBadgeWithLabel } from './emoji-badge.js';
 
 const FIGHTER_EMOJIS = ['🥷', '🦸', '🧟', '🧛', '🧙', '🧝', '🧞', '🤺', '🤼', '🥊', '🥋', '🤖', '👾', '👹', '👺'];
 
@@ -70,18 +71,19 @@ export function drawBattlePreview(picker) {
         const y = cy + (apothem - maxRadius - 10) * Math.sin(angle);
         const emoji = FIGHTER_EMOJIS[i % FIGHTER_EMOJIS.length];
         const weight = picker.weightsEnabled ? (picker.weights[i] || 1) : 1;
-        
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        
-        ctx.font = `${maxRadius * 1.5}px Arial`;
-        ctx.fillText(emoji, x, y);
+        const emojiSize = maxRadius * 1.5;
         
         const displayName = getDisplayName(name, weight, picker.weightsEnabled);
-        
-        ctx.fillStyle = '#fff';
-        ctx.font = `bold ${Math.max(8, maxRadius * 0.4)}px Poppins`;
-        ctx.fillText(displayName, x, y + maxRadius + 5);
+        drawEmojiBadgeWithLabel(ctx, {
+            x,
+            y,
+            emoji,
+            color: colors[i % colors.length],
+            emojiSize,
+            label: displayName,
+            labelFontSize: Math.max(8, maxRadius * 0.4),
+            labelPosition: 'bottom'
+        });
     });
 }
 
@@ -101,7 +103,7 @@ export function runBattleRoyale(picker) {
         let currentR = maxR;
         
         const maxRadius = Math.max(15, Math.min(35, (currentR * Math.PI) / num * 0.8));
-        const TARGET_SPEED = 5 / (picker.durationMultiplier || 1);
+        const TARGET_SPEED = 3 / (picker.durationMultiplier || 1);
         
         const contestants = picker.names.map((name, i) => {
             const angle = (i / num) * Math.PI * 2;
@@ -113,6 +115,7 @@ export function runBattleRoyale(picker) {
                 name,
                 isWinner: name === winner,
                 emoji: FIGHTER_EMOJIS[i % FIGHTER_EMOJIS.length],
+                color: UI_COLORS[i % UI_COLORS.length],
                 radius: maxRadius,
                 originalRadius: maxRadius,
                 health: 100,
@@ -125,6 +128,8 @@ export function runBattleRoyale(picker) {
                 deathTime: null
             };
         });
+        
+        const eliminatedList = [];
         
         const animate = () => {
             if (picker.animationCancelled) {
@@ -171,101 +176,104 @@ export function runBattleRoyale(picker) {
                 if (c.health <= 0 && c.alive) {
                     c.alive = false;
                     c.deathTime = Date.now();
+                    eliminatedList.push(c);
                 }
             };
             
             // Apply physics: Move, Collide, Resolve
-            active.forEach(c => {
-                c.x += c.vx;
-                c.y += c.vy;
-                
-                // Constant speed enforcement
-                const speed = Math.sqrt(c.vx * c.vx + c.vy * c.vy);
-                if (speed > 0.001) {
-                    c.vx = (c.vx / speed) * TARGET_SPEED;
-                    c.vy = (c.vy / speed) * TARGET_SPEED;
-                } else {
-                    const rAngle = Math.random() * Math.PI * 2;
-                    c.vx = Math.cos(rAngle) * TARGET_SPEED;
-                    c.vy = Math.sin(rAngle) * TARGET_SPEED;
-                }
-                
-                // Wall collisions (Hexagon)
-                const dx = c.x - cx;
-                const dy = c.y - cy;
-                const apothem = currentR * Math.cos(Math.PI / 6);
-                
-                for (let j = 0; j < 6; j++) {
-                    const normalAngle = j * Math.PI / 3 + Math.PI / 6;
-                    const nx = Math.cos(normalAngle);
-                    const ny = Math.sin(normalAngle);
+            if (active.length > 1) {
+                active.forEach(c => {
+                    c.x += c.vx;
+                    c.y += c.vy;
                     
-                    const distAlongNormal = dx * nx + dy * ny;
-                    if (distAlongNormal + c.radius > apothem) {
-                        const overlap = distAlongNormal + c.radius - apothem;
+                    // Constant speed enforcement
+                    const speed = Math.sqrt(c.vx * c.vx + c.vy * c.vy);
+                    if (speed > 0.001) {
+                        c.vx = (c.vx / speed) * TARGET_SPEED;
+                        c.vy = (c.vy / speed) * TARGET_SPEED;
+                    } else {
+                        const rAngle = Math.random() * Math.PI * 2;
+                        c.vx = Math.cos(rAngle) * TARGET_SPEED;
+                        c.vy = Math.sin(rAngle) * TARGET_SPEED;
+                    }
+                    
+                    // Wall collisions (Hexagon)
+                    const dx = c.x - cx;
+                    const dy = c.y - cy;
+                    const apothem = currentR * Math.cos(Math.PI / 6);
+                    
+                    for (let j = 0; j < 6; j++) {
+                        const normalAngle = j * Math.PI / 3 + Math.PI / 6;
+                        const nx = Math.cos(normalAngle);
+                        const ny = Math.sin(normalAngle);
                         
-                        // Push inside
-                        c.x -= overlap * nx;
-                        c.y -= overlap * ny;
-                        
-                        // Reflect velocity
-                        const dot = c.vx * nx + c.vy * ny;
-                        if (dot > 0) {
-                            c.vx = c.vx - 2 * dot * nx;
-                            c.vy = c.vy - 2 * dot * ny;
-                            c.vx += (Math.random() - 0.5) * 0.5; // add noise
-                            c.vy += (Math.random() - 0.5) * 0.5;
+                        const distAlongNormal = dx * nx + dy * ny;
+                        if (distAlongNormal + c.radius > apothem) {
+                            const overlap = distAlongNormal + c.radius - apothem;
+                            
+                            // Push inside
+                            c.x -= overlap * nx;
+                            c.y -= overlap * ny;
+                            
+                            // Reflect velocity
+                            const dot = c.vx * nx + c.vy * ny;
+                            if (dot > 0) {
+                                c.vx = c.vx - 2 * dot * nx;
+                                c.vy = c.vy - 2 * dot * ny;
+                                c.vx += (Math.random() - 0.5) * 0.5; // add noise
+                                c.vy += (Math.random() - 0.5) * 0.5;
+                            }
                         }
                     }
-                }
-            });
-            
-            // Inter-particle collisions
-            for (let i = 0; i < active.length; i++) {
-                for (let j = i + 1; j < active.length; j++) {
-                    const c1 = active[i];
-                    const c2 = active[j];
-                    
-                    const dx = c2.x - c1.x;
-                    const dy = c2.y - c1.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const minDist = c1.radius + c2.radius;
-                    
-                    if (dist < minDist && dist > 0.001) {
-                        // Resolve overlap
-                        const overlap = minDist - dist;
-                        const nx = dx / dist;
-                        const ny = dy / dist;
+                });
+                
+                // Inter-particle collisions
+                for (let i = 0; i < active.length; i++) {
+                    for (let j = i + 1; j < active.length; j++) {
+                        const c1 = active[i];
+                        const c2 = active[j];
                         
-                        c1.x -= nx * overlap / 2;
-                        c1.y -= ny * overlap / 2;
-                        c2.x += nx * overlap / 2;
-                        c2.y += ny * overlap / 2;
+                        const dx = c2.x - c1.x;
+                        const dy = c2.y - c1.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const minDist = c1.radius + c2.radius;
                         
-                        // Elastic bounce
-                        const rvx = c2.vx - c1.vx;
-                        const rvy = c2.vy - c1.vy;
-                        const velAlongNormal = rvx * nx + rvy * ny;
-                        
-                        if (velAlongNormal < 0) {
-                            const jImpulse = -velAlongNormal; // Assuming equal mass
-                            const impulseX = jImpulse * nx;
-                            const impulseY = jImpulse * ny;
+                        if (dist < minDist && dist > 0.001) {
+                            // Resolve overlap
+                            const overlap = minDist - dist;
+                            const nx = dx / dist;
+                            const ny = dy / dist;
                             
-                            c1.vx -= impulseX;
-                            c1.vy -= impulseY;
-                            c2.vx += impulseX;
-                            c2.vy += impulseY;
+                            c1.x -= nx * overlap / 2;
+                            c1.y -= ny * overlap / 2;
+                            c2.x += nx * overlap / 2;
+                            c2.y += ny * overlap / 2;
                             
-                            c1.vx += (Math.random() - 0.5) * 0.5; // add noise
-                            c1.vy += (Math.random() - 0.5) * 0.5;
+                            // Elastic bounce
+                            const rvx = c2.vx - c1.vx;
+                            const rvy = c2.vy - c1.vy;
+                            const velAlongNormal = rvx * nx + rvy * ny;
+                            
+                            if (velAlongNormal < 0) {
+                                const jImpulse = -velAlongNormal; // Assuming equal mass
+                                const impulseX = jImpulse * nx;
+                                const impulseY = jImpulse * ny;
+                                
+                                c1.vx -= impulseX;
+                                c1.vy -= impulseY;
+                                c2.vx += impulseX;
+                                c2.vy += impulseY;
+                                
+                                c1.vx += (Math.random() - 0.5) * 0.5; // add noise
+                                c1.vy += (Math.random() - 0.5) * 0.5;
+                            }
+                            
+                            const dmgFrom1 = Math.floor(5 + Math.random() * 11) + (c1.weight > 1 ? (c1.weight > 2 ? 20 : 10) : 0);
+                            const dmgFrom2 = Math.floor(5 + Math.random() * 11) + (c2.weight > 1 ? (c2.weight > 2 ? 20 : 10) : 0);
+                            
+                            takeDamage(c1, dmgFrom2);
+                            takeDamage(c2, dmgFrom1);
                         }
-                        
-                        const dmgFrom1 = Math.floor(5 + Math.random() * 11) + (c1.weight > 1 ? (c1.weight > 2 ? 20 : 10) : 0);
-                        const dmgFrom2 = Math.floor(5 + Math.random() * 11) + (c2.weight > 1 ? (c2.weight > 2 ? 20 : 10) : 0);
-                        
-                        takeDamage(c1, dmgFrom2);
-                        takeDamage(c2, dmgFrom1);
                     }
                 }
             }
@@ -295,57 +303,126 @@ export function runBattleRoyale(picker) {
                 ctx.restore();
             });
             
-            active.forEach(c => {
-                ctx.save();
-                ctx.translate(c.x, c.y);
-                
-                ctx.font = `${c.radius * 1.5}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(c.emoji, 0, 0);
-                
-                const displayName = getDisplayName(c.name, c.weight, picker.weightsEnabled);
-                
-                ctx.fillStyle = '#fff';
-                const fontSize = Math.max(8, c.originalRadius * 0.4);
-                ctx.font = `bold ${fontSize}px Poppins`;
-                ctx.fillText(displayName, 0, c.radius + 5);
-                
-                const barWidth = c.radius * 1.5;
-                const barHeight = 4;
-                const barY = c.radius + fontSize / 2 + 8;
-                
-                ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
-                
-                const healthRatio = Math.max(0, c.health) / 100;
-                if (healthRatio > 0.5) ctx.fillStyle = '#2ecc71';
-                else if (healthRatio > 0.25) ctx.fillStyle = '#f1c40f';
-                else ctx.fillStyle = '#e74c3c';
-                
-                ctx.fillRect(-barWidth / 2, barY, barWidth * healthRatio, barHeight);
-                
-                ctx.restore();
-            });
+            if (active.length > 1) {
+                active.forEach(c => {
+                    ctx.save();
+                    ctx.translate(c.x, c.y);
+                    const emojiSize = c.radius * 1.5;
+                    const displayName = getDisplayName(c.name, c.weight, picker.weightsEnabled);
+                    const fontSize = Math.max(8, c.originalRadius * 0.4);
+                    const labelMetrics = drawEmojiBadgeWithLabel(ctx, {
+                        x: 0,
+                        y: 0,
+                        emoji: c.emoji,
+                        color: c.color,
+                        emojiSize,
+                        label: displayName,
+                        labelFontSize: fontSize,
+                        labelPosition: 'bottom'
+                    });
+                    
+                    const barWidth = c.radius * 1.5;
+                    const barHeight = 4;
+                    const barY = labelMetrics.labelBottom + 6;
+                    
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
+                    
+                    const healthRatio = Math.max(0, c.health) / 100;
+                    if (healthRatio > 0.5) ctx.fillStyle = '#2ecc71';
+                    else if (healthRatio > 0.25) ctx.fillStyle = '#f1c40f';
+                    else ctx.fillStyle = '#e74c3c';
+                    
+                    ctx.fillRect(-barWidth / 2, barY, barWidth * healthRatio, barHeight);
+                    
+                    ctx.restore();
+                });
+            }
             
             if (active.length <= 1) {
                 const winnerContestant = active[0] || contestants.find(c => c.isWinner);
                 
+                if (winnerContestant.animProgress === undefined) {
+                    winnerContestant.startX = winnerContestant.x;
+                    winnerContestant.startY = winnerContestant.y;
+                    winnerContestant.animProgress = 0;
+                }
+                
+                winnerContestant.animProgress += 0.02;
+                if (winnerContestant.animProgress >= 1) {
+                    winnerContestant.animProgress = 1;
+                }
+                
+                const p = winnerContestant.animProgress;
+                const easeOut = 1 - Math.pow(1 - p, 3);
+                
+                winnerContestant.x = winnerContestant.startX + (cx - winnerContestant.startX) * easeOut;
+                winnerContestant.y = winnerContestant.startY + (cy - winnerContestant.startY) * easeOut;
+                
                 ctx.save();
-                ctx.shadowColor = '#ffd700';
-                ctx.shadowBlur = 30;
-                ctx.fillStyle = '#ffd700';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.font = 'bold 36px Poppins';
-                ctx.fillText('👑 SURVIVOR! 👑', cx, cy - 60);
-                ctx.font = '64px Arial';
-                ctx.fillText(winnerContestant.emoji, cx, cy);
-                ctx.font = 'bold 28px Poppins';
-                ctx.fillText(winnerContestant.name, cx, cy + 60);
+                ctx.translate(winnerContestant.x, winnerContestant.y);
+                
+                const startRadius = winnerContestant.originalRadius;
+                const fixedEmojiSize = startRadius * 1.5;
+                const fixedLabelFontSize = Math.max(8, startRadius * 0.4);
+                
+                if (p === 1) {
+                    ctx.shadowColor = '#ffd700';
+                    ctx.shadowBlur = 30;
+                }
+                
+                const displayName = getDisplayName(winnerContestant.name, winnerContestant.weight, picker.weightsEnabled);
+                drawEmojiBadgeWithLabel(ctx, {
+                    x: 0,
+                    y: 0,
+                    emoji: winnerContestant.emoji,
+                    color: p === 1 ? '#ffd700' : winnerContestant.color,
+                    emojiSize: fixedEmojiSize,
+                    label: p === 1 ? winnerContestant.name : displayName,
+                    labelFontSize: fixedLabelFontSize,
+                    labelPosition: 'bottom'
+                });
+                
+                if (p === 1) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.font = 'bold 36px Poppins';
+                    ctx.fillText('👑 SURVIVOR! 👑', 0, -60);
+                }
+                
                 ctx.restore();
-                setTimeout(() => resolve(winner), 2000);
-                return;
+                
+                if (p === 1 && !winnerContestant.resolved) {
+                    winnerContestant.resolved = true;
+                    setTimeout(() => {
+                        winnerContestant.finished = true;
+                        resolve(winner);
+                    }, 2000);
+                }
+                
+                if (winnerContestant.finished) {
+                    return;
+                }
+            }
+            
+            // Render Eliminated List (Kill Feed)
+            if (eliminatedList.length > 0) {
+                ctx.save();
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#ff6b6b';
+                ctx.font = 'bold 20px Poppins';
+                ctx.fillText('Eliminated', width - 20, 60);
+                
+                ctx.font = '16px Poppins';
+                ctx.fillStyle = '#aaaaaa';
+                const maxVisible = Math.floor((height - 100) / 25);
+                
+                // Show newest eliminations at the bottom
+                const visibleList = eliminatedList.slice(-maxVisible);
+                
+                visibleList.forEach((c, idx) => {
+                    ctx.fillText(`💀 ${c.name}`, width - 20, 90 + idx * 25);
+                });
+                ctx.restore();
             }
             
             requestAnimationFrame(animate);

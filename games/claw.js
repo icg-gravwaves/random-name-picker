@@ -1,6 +1,12 @@
 import { UI_COLORS } from '../constants.js';
+import { drawEmojiBadge } from './emoji-badge.js';
 
 export const ANIMAL_EMOJIS = ['🐻', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🐰', '🦊', '🐶', '🐱', '🐮', '🐔', '🐧', '🐺', '🐹', '🦉', '🐦', '🐤', '🐙', '🐝', '🐢'];
+
+const CLAW_GAME_BADGE_SIZE = 46;
+const CLAW_GAME_LABEL_SIZE = 13;
+const CLAW_PREVIEW_BADGE_SIZE = CLAW_GAME_BADGE_SIZE;
+const CLAW_PREVIEW_LABEL_SIZE = CLAW_GAME_LABEL_SIZE;
 
 export function drawClawPreview(picker) {
     if (picker.names.length === 0) return;
@@ -49,25 +55,11 @@ export function drawClawPreview(picker) {
         
         ctx.save();
         ctx.translate(x, y);
-        
-        ctx.beginPath();
-        ctx.arc(0, 0, 20, 0, Math.PI * 2);
-        ctx.fillStyle = '#fff';
-        ctx.fill();
-        ctx.strokeStyle = animal.color;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        ctx.font = '22px Arial';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(animal.emoji, 0, 2);
-        
-        ctx.fillStyle = animal.color;
-        ctx.fillRect(-18, 22, 36, 12);
-        ctx.fillStyle = '#000';
-        ctx.font = 'bold 7px Poppins';
-        ctx.fillText(animal.name.substring(0, 6), 0, 29);
+        drawEmojiBadge(ctx, 0, 0, animal.emoji, animal.color, CLAW_PREVIEW_BADGE_SIZE, {
+            label: animal.name,
+            labelFontSize: CLAW_PREVIEW_LABEL_SIZE,
+            labelPosition: 'bottom'
+        });
         
         ctx.restore();
     });
@@ -234,32 +226,6 @@ export function runClawMachine(picker) {
             ctx.restore();
         };
         
-        const drawAnimal = (animal, highlight = false) => {
-            ctx.save();
-            ctx.translate(animal.x, animal.y);
-            
-            ctx.beginPath();
-            ctx.arc(0, 0, animal.radius, 0, Math.PI * 2);
-            ctx.fillStyle = '#fff';
-            ctx.fill();
-            ctx.strokeStyle = highlight ? '#fff' : animal.color;
-            ctx.lineWidth = highlight ? 4 : 3;
-            ctx.stroke();
-            
-            ctx.font = '28px Arial';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(animal.emoji, 0, 2);
-            
-            ctx.fillStyle = animal.color;
-            ctx.fillRect(-25, animal.radius + 2, 50, 14);
-            ctx.fillStyle = '#000';
-            ctx.font = 'bold 8px Poppins';
-            ctx.fillText(animal.name, 0, animal.radius + 10);
-            
-            ctx.restore();
-        };
-        
         const animate = () => {
             if (picker.animationCancelled) {
                 resolve(null);
@@ -289,7 +255,14 @@ export function runClawMachine(picker) {
 
             animals.forEach((animal, i) => {
                 if (animal !== claw.grabbedAnimal) {
-                    drawAnimal(animal);
+                    ctx.save();
+                    ctx.translate(animal.x, animal.y);
+                    drawEmojiBadge(ctx, 0, 0, animal.emoji, animal.color, CLAW_GAME_BADGE_SIZE, {
+                        label: animal.name,
+                        labelFontSize: CLAW_GAME_LABEL_SIZE,
+                        labelPosition: 'bottom'
+                    });
+                    ctx.restore();
                 }
             });
             
@@ -374,7 +347,14 @@ export function runClawMachine(picker) {
             }
             
             if (claw.grabbedAnimal) {
-                drawAnimal(claw.grabbedAnimal, true);
+                ctx.save();
+                ctx.translate(claw.grabbedAnimal.x, claw.grabbedAnimal.y);
+                drawEmojiBadge(ctx, 0, 0, claw.grabbedAnimal.emoji, claw.grabbedAnimal.color, CLAW_GAME_BADGE_SIZE, {
+                    label: claw.grabbedAnimal.name,
+                    labelFontSize: CLAW_GAME_LABEL_SIZE,
+                    labelPosition: 'bottom'
+                });
+                ctx.restore();
             }
             
             drawClaw(claw.x, claw.y, claw.openAngle > 0.3, claw.grabbedAnimal !== null);
