@@ -7,6 +7,9 @@ const CLAW_GAME_BADGE_SIZE = 46;
 const CLAW_GAME_LABEL_SIZE = 13;
 const CLAW_PREVIEW_BADGE_SIZE = CLAW_GAME_BADGE_SIZE;
 const CLAW_PREVIEW_LABEL_SIZE = CLAW_GAME_LABEL_SIZE;
+const CLAW_OPEN_ANGLE = 0.5;
+const CLAW_FUMBLE_ANGLE = 0.15;
+const CLAW_HOLD_ANGLE = 0.24;
 
 export function drawClawPreview(picker) {
     if (picker.names.length === 0) return;
@@ -152,7 +155,7 @@ export function runClawMachine(picker) {
         const claw = {
             x: width / 2,
             y: 50,
-            openAngle: 0.4,
+            openAngle: CLAW_OPEN_ANGLE,
             state: 'moving',
             targetX: 0,
             grabbedAnimal: null
@@ -181,7 +184,7 @@ export function runClawMachine(picker) {
         const startTime = Date.now();
         let grabQueued = false;
         
-        const drawClaw = (x, y, open, holding) => {
+        const drawClaw = (x, y, angle) => {
             ctx.beginPath();
             ctx.moveTo(x, 0);
             ctx.lineTo(x, y - 50);
@@ -200,7 +203,6 @@ export function runClawMachine(picker) {
             ctx.arc(0, 0, 15, 0, Math.PI * 2);
             ctx.fill();
             
-            const angle = open ? 0.5 : 0.15;
             ctx.strokeStyle = '#555';
             ctx.lineWidth = 6;
             ctx.lineCap = 'round';
@@ -281,19 +283,20 @@ export function runClawMachine(picker) {
                     claw.y += 4 * speedFactor;
                     if (claw.y >= targetAnimal.y - 30) {
                         claw.state = 'grabbing';
-                        claw.openAngle = 0.5;
+                        claw.openAngle = CLAW_OPEN_ANGLE;
                         if (!grabQueued) {
                             grabQueued = true;
                         }
                         setTimeout(() => {
-                            claw.openAngle = 0.15;
+                            claw.openAngle = CLAW_FUMBLE_ANGLE;
                             if (fumbleCount > 0) {
                                 fumbleCount--;
                                 setTimeout(() => {
-                                    claw.openAngle = 0.5;
+                                    claw.openAngle = CLAW_OPEN_ANGLE;
                                     claw.state = 'ascending';
                                 }, 300 * picker.durationMultiplier);
                             } else {
+                                claw.openAngle = CLAW_HOLD_ANGLE;
                                 claw.grabbedAnimal = targetAnimal;
                                 claw.state = 'ascending';
                             }
@@ -316,7 +319,7 @@ export function runClawMachine(picker) {
                             targetAnimal = animals[targetAnimalIndex];
                             winner = targetAnimal.name;
                             claw.targetX = targetAnimal.x;
-                            claw.openAngle = 0.5;
+                            claw.openAngle = CLAW_OPEN_ANGLE;
                             claw.state = 'moving';
                         }
                     }
@@ -329,7 +332,7 @@ export function runClawMachine(picker) {
                         claw.grabbedAnimal.x = claw.x;
                     } else {
                         claw.state = 'dropping';
-                        claw.openAngle = 0.5;
+                        claw.openAngle = CLAW_OPEN_ANGLE;
                         claw.grabbedAnimal.vy = 2 * speedFactor;
                     }
                     break;
@@ -357,7 +360,7 @@ export function runClawMachine(picker) {
                 ctx.restore();
             }
             
-            drawClaw(claw.x, claw.y, claw.openAngle > 0.3, claw.grabbedAnimal !== null);
+            drawClaw(claw.x, claw.y, claw.openAngle);
             
             ctx.fillStyle = '#444';
             ctx.fillRect(20, 40, width - 40, 8);

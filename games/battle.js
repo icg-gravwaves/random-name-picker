@@ -38,7 +38,7 @@ export function drawBattlePreview(picker) {
     ctx.fillStyle = '#ff6b6b';
     ctx.font = 'bold 24px Poppins';
     ctx.textAlign = 'center';
-    ctx.fillText(`⚔️ BATTLE ROYALE - ${picker.names.length} Contestants ⚔️`, width / 2, 30);
+    ctx.fillText(`⚔️ BATTLE ARENA - ${picker.names.length} Contestants ⚔️`, width / 2, 30);
     
     const cx = width / 2;
     const cy = height / 2 + 20;
@@ -87,7 +87,7 @@ export function drawBattlePreview(picker) {
     });
 }
 
-export function runBattleRoyale(picker) {
+export function runBattleArena(picker) {
     return new Promise(resolve => {
         const canvas = picker.battleCanvas;
         const ctx = picker.battleCtx;

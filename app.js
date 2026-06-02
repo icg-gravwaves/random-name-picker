@@ -1,9 +1,9 @@
-import { DEFAULT_SAMPLE_NAMES, CONFETTI_COLORS, CONFETTI_PARTICLES, SLOT_ITEM_HEIGHT } from './constants.js';
+import { DEFAULT_SAMPLE_NAMES, CONFETTI_COLORS, CONFETTI_PARTICLES } from './constants.js';
 import { drawWheel, spinWheel } from './games/wheel.js';
-import { setupSlots, spinSlots } from './games/slots.js';
+import { resetSlots, setupSlots, spinSlots } from './games/slots.js';
 import { drawClawPreview, runClawMachine } from './games/claw.js';
 import { drawRacePreview, runRace } from './games/race.js';
-import { drawBattlePreview, runBattleRoyale } from './games/battle.js';
+import { drawBattlePreview, runBattleArena } from './games/battle.js';
 import { drawSpotlightPreview, runSpotlight } from './games/spotlight.js';
 
 class SoundEngine {
@@ -268,7 +268,9 @@ class RandomNamePicker {
         this.initWheelCanvas();
         
         // Slots
-        this.slotReel = document.getElementById('slotReel');
+        this.slotLeftReel = document.getElementById('slotLeftReel');
+        this.slotCenterReel = document.getElementById('slotCenterReel');
+        this.slotRightReel = document.getElementById('slotRightReel');
 
         // Claw Machine
         this.clawCanvas = document.getElementById('clawCanvas');
@@ -278,7 +280,7 @@ class RandomNamePicker {
         this.raceCanvas = document.getElementById('raceCanvas');
         this.raceCtx = this.raceCanvas.getContext('2d');
 
-        // Battle Royale
+        // Battle Arena
         this.battleCanvas = document.getElementById('battleCanvas');
         this.battleCtx = this.battleCanvas.getContext('2d');
 
@@ -590,7 +592,7 @@ class RandomNamePicker {
                 winner = await runRace(this);
                 break;
             case 'battle':
-                winner = await runBattleRoyale(this);
+                winner = await runBattleArena(this);
                 break;
             case 'spotlight':
                 winner = await runSpotlight(this);
@@ -693,16 +695,7 @@ class RandomNamePicker {
      * Reset slot reel position and remove highlight markers.
      */
     resetSlotPosition() {
-        if (this.names.length > 0) {
-            const itemHeight = SLOT_ITEM_HEIGHT;
-            this.slotReel.style.transform = `translateY(-${this.names.length * itemHeight}px)`;
-            // Remove stopped state and center highlight
-            const slotWindow = this.slotReel.parentElement;
-            if (slotWindow) {
-                slotWindow.classList.remove('stopped');
-            }
-            this.slotReel.querySelectorAll('.slot-name').forEach(el => el.classList.remove('center'));
-        }
+        resetSlots(this);
     }
 
     /**

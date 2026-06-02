@@ -88,10 +88,18 @@
                 <!-- Slot Machine Animation -->
                 <div class="animation-display slots-display" id="slotsDisplay">
                     <div class="slot-machine">
-                        <div class="slot-window">
-                            <div class="center-indicator"></div>
-                            <div class="slot-reel" id="slotReel">
-                                <!-- Names will be populated here -->
+                        <div class="slot-bank">
+                            <div class="slot-window slot-window-symbol">
+                                <div class="center-indicator"></div>
+                                <div class="slot-reel" id="slotLeftReel"></div>
+                            </div>
+                            <div class="slot-window slot-window-name">
+                                <div class="center-indicator"></div>
+                                <div class="slot-reel" id="slotCenterReel"></div>
+                            </div>
+                            <div class="slot-window slot-window-symbol">
+                                <div class="center-indicator"></div>
+                                <div class="slot-reel" id="slotRightReel"></div>
                             </div>
                         </div>
                     </div>
@@ -107,7 +115,7 @@
                     <canvas id="raceCanvas"></canvas>
                 </div>
 
-                <!-- Battle Royale Animation -->
+                <!-- Battle Arena Animation -->
                 <div class="animation-display battle-display" id="battleDisplay">
                     <canvas id="battleCanvas"></canvas>
                 </div>
