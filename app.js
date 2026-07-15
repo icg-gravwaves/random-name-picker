@@ -150,7 +150,78 @@ class SoundEngine {
     }
 
     playWin() {
-        this.playReveal();
+        // One-armed-bandit payout style: 5 identical, metallic "Ching" sounds.
+        const rootFrequency = 2000; // Bright, piercing chime frequency
+        const interval = 0.16;      // Steady, mechanical delay between strikes
+
+        Array.from({ length: 5 }).forEach((_, i) => {
+            const burstDelay = i * interval;
+
+            // 1. The "Ch-" (Crisp, high-frequency noise attack for the coin strike)
+            this.playNoise({
+                duration: 0.02, 
+                volume: 0.075, 
+                band: 3500, // High band for a clean silver/metal click
+                delay: burstDelay
+            });
+
+            // 2. The "-ing" metallic body (Main strike)
+            this.playTone({
+                frequency: rootFrequency,
+                duration: 0.12,
+                type: 'triangle',
+                volume: 0.15,
+                attack: 0.002,
+                release: 0.07,
+                delay: burstDelay,
+            });
+
+            // 3. The Metallic Overtone (Inharmonic 1.414x multiplier for the "metal" clang)
+            this.playTone({
+                frequency: Math.round(rootFrequency * 1.414), 
+                duration: 0.09,
+                type: 'sine',
+                volume: 0.09,
+                attack: 0.002,
+                release: 0.05,
+                delay: burstDelay + 0.005,
+            });
+
+            // 4. High Silver Shimmer (1.8x multiplier)
+            this.playTone({
+                frequency: Math.round(rootFrequency * 1.8), 
+                duration: 0.06,
+                type: 'sine',
+                volume: 0.045,
+                attack: 0.001,
+                release: 0.03,
+                delay: burstDelay + 0.01,
+            });
+        });
+    }
+
+    playWrong() {
+        // "Uh-uhhhh" Wrong Answer Buzzer
+        this.playTone({
+            frequency: 75,
+            duration: 0.15,
+            type: 'sawtooth',
+            volume: 0.25,
+            attack: 0.005,
+            release: 0.05,
+            delay: 0.0,
+        });
+        
+        // Slighly lower pitch than beat 1 for that deflating, disappointed drop
+        this.playTone({
+            frequency: 65,
+            duration: 0.45,
+            type: 'sawtooth',
+            volume: 0.25,
+            attack: 0.01,
+            release: 0.15, // Longer fade out
+            delay: 0.22,
+        });
     }
 
     async playSadTrombone() {
