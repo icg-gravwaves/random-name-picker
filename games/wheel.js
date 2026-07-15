@@ -1,4 +1,4 @@
-import { WHEEL_COLORS } from '../constants.js';
+import { UI_COLORS } from '../constants.js';
 
 export function getSliceAngles(picker) {
     if (picker.names.length === 0) return [];
@@ -79,7 +79,7 @@ export function drawWheel(picker, rotation = 0) {
     }
 
     const sliceAngles = getSliceAngles(picker);
-    const colors = WHEEL_COLORS;
+    const colors = UI_COLORS;
 
     ctx.save();
     ctx.translate(centerX, centerY);

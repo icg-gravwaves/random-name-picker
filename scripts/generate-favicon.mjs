@@ -2,12 +2,12 @@
 
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { WHEEL_COLORS } from '../constants.js';
+import { UI_COLORS } from '../constants.js';
 
 const size = 64;
 const center = size / 2;
 const radius = 30;
-const sliceAngle = (Math.PI * 2) / WHEEL_COLORS.length;
+const sliceAngle = (Math.PI * 2) / UI_COLORS.length;
 const startAngle = -Math.PI / 2;
 
 function pointAt(angle) {
@@ -27,7 +27,7 @@ function slicePath(index) {
     return `M ${center} ${center} L ${start.x.toFixed(3)} ${start.y.toFixed(3)} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${end.x.toFixed(3)} ${end.y.toFixed(3)} Z`;
 }
 
-const slices = WHEEL_COLORS
+const slices = UI_COLORS
     .map((color, index) => `<path d="${slicePath(index)}" fill="${color}"/>`)
     .join('');
 
