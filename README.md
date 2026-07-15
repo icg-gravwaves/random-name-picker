@@ -49,8 +49,11 @@ A fun, interactive random name picker with multiple animation styles. Hosted ent
 ## Files
 
 - `index.html` - Main HTML structure
+- `favicon.svg` - Wheel-based favicon generated from the wheel palette
 - `styles.css` - All styling and animations
 - `app.js` - Application logic and animations
+
+The favicon is regenerated automatically on pushes to `main` by `.github/workflows/update-favicon.yml`.
 
 ## License
 

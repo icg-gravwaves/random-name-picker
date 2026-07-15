@@ -1,18 +1,4 @@
-export const WHEEL_COLORS = [
-    '#6366f1',
-    '#8b5cf6',
-    '#a855f7',
-    '#d946ef',
-    '#ec4899',
-    '#f43f5e',
-    '#f97316',
-    '#eab308',
-    '#22c55e',
-    '#14b8a6',
-    '#06b6d4',
-    '#0ea5e9',
-    '#3b82f6',
-];
+import { WHEEL_COLORS } from '../constants.js';
 
 export function getSliceAngles(picker) {
     if (picker.names.length === 0) return [];

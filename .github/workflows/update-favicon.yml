@@ -1,0 +1,40 @@
+name: Update favicon
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-favicon:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Generate favicon
+        run: node scripts/generate-favicon.mjs
+
+      - name: Commit favicon if it changed
+        run: |
+          if [ -z "$(git status --porcelain -- favicon.svg)" ]; then
+            echo "favicon.svg is unchanged"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add favicon.svg
+          git commit -m "Update favicon [skip ci]"
+          git push
