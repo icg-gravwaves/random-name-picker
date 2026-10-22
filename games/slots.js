@@ -3,7 +3,8 @@ import { getSliceAngles } from './wheel.js';
 
 const SLOT_SYMBOLS = ['🍒', '🍋', '🔔', '7️⃣', '💎', '⭐', '🍀'];
 const MAX_JEOPARDY_MISSES = 3;
-const MISS_PROBABILITY = 0.5;
+// Conditional success chances produce a 20%/30%/30%/20% finish distribution.
+const MATCH_PROBABILITIES = [0.2, 0.375, 0.6, 1];
 
 function buildNameVisual(index, name = '') {
     return {
@@ -141,7 +142,7 @@ export async function spinSlots(picker, winner) {
         if (picker.animationCancelled) return;
 
         const isLastAttempt = attempt === MAX_JEOPARDY_MISSES;
-        const isMatch = !canHaveJeopardy || isLastAttempt || Math.random() >= MISS_PROBABILITY;
+        const isMatch = !canHaveJeopardy || isLastAttempt || Math.random() < MATCH_PROBABILITIES[attempt];
 
         const baseDuration = 1400 * picker.durationMultiplier;
 
