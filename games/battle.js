@@ -1,5 +1,5 @@
 import { UI_COLORS } from '../constants.js';
-import { drawEmojiBadge, drawEmojiBadgeWithLabel } from './emoji-badge.js';
+import { drawEmojiBadgeWithLabel } from './emoji-badge.js';
 
 const FIGHTER_EMOJIS = ['🥷', '🦸', '🧟', '🧛', '🧙', '🧝', '🧞', '🤺', '🤼', '🥊', '🥋', '🤖', '👾', '👹', '👺'];
 
@@ -103,7 +103,12 @@ export function runBattleArena(picker) {
         let currentR = maxR;
         
         const maxRadius = Math.max(15, Math.min(35, (currentR * Math.PI) / num * 0.8));
-        const TARGET_SPEED = 3 / (picker.durationMultiplier || 1);
+        const durationMultiplier = picker.durationMultiplier || 1;
+        const TARGET_SPEED = 3;
+        // Pace eliminations across a longer match as the crowd grows.
+        const battleDuration = 12000 + Math.min(10000, Math.max(0, num - 2) * 200);
+        let elapsed = 0;
+        let previousTime = performance.now();
         
         const contestants = picker.names.map((name, i) => {
             const angle = (i / num) * Math.PI * 2;
@@ -113,12 +118,13 @@ export function runBattleArena(picker) {
             
             return {
                 name,
-                isWinner: name === winner,
+                isWinner: i === winnerIndex,
                 emoji: FIGHTER_EMOJIS[i % FIGHTER_EMOJIS.length],
                 color: UI_COLORS[i % UI_COLORS.length],
                 radius: maxRadius,
                 originalRadius: maxRadius,
                 health: 100,
+                lastHitTime: -Infinity,
                 weight,
                 x: cx + (apothem - maxRadius - 10) * Math.cos(angle),
                 y: cy + (apothem - maxRadius - 10) * Math.sin(angle),
@@ -131,7 +137,12 @@ export function runBattleArena(picker) {
         
         const eliminatedList = [];
         
-        const animate = () => {
+        const animate = (now = performance.now()) => {
+            // Clamp paused-tab catch-up; all match timing follows the speed slider.
+            const delta = Math.min(50, Math.max(0, now - previousTime)) / durationMultiplier;
+            previousTime = now;
+            elapsed += delta;
+            const frameScale = delta / (1000 / 60);
             if (picker.animationCancelled) {
                 resolve(null);
                 return;
@@ -145,7 +156,7 @@ export function runBattleArena(picker) {
             
             // Shrink arena based on active combatants
             const targetR = Math.max(60, maxR * Math.sqrt(active.length / num));
-            currentR += (targetR - currentR) * 0.02; // Smoothly close in
+            currentR += (targetR - currentR) * (1 - Math.pow(0.98, frameScale)); // Smoothly close in
             
             ctx.fillStyle = '#ff6b6b';
             ctx.font = 'bold 24px Poppins';
@@ -173,6 +184,11 @@ export function runBattleArena(picker) {
                 if (c.isWinner && c.health <= 20) {
                     c.health = 20;
                 }
+                // Give each elimination room to be seen, even in a packed arena.
+                const allowedEliminations = Math.floor((num - 1) * Math.min(1, elapsed / battleDuration));
+                if (!c.isWinner && c.health <= 0 && eliminatedList.length >= allowedEliminations) {
+                    c.health = 1;
+                }
                 if (c.health <= 0 && c.alive) {
                     c.alive = false;
                     c.deathTime = Date.now();
@@ -183,8 +199,8 @@ export function runBattleArena(picker) {
             // Apply physics: Move, Collide, Resolve
             if (active.length > 1) {
                 active.forEach(c => {
-                    c.x += c.vx;
-                    c.y += c.vy;
+                    c.x += c.vx * frameScale;
+                    c.y += c.vy * frameScale;
                     
                     // Constant speed enforcement
                     const speed = Math.sqrt(c.vx * c.vx + c.vy * c.vy);
@@ -232,6 +248,7 @@ export function runBattleArena(picker) {
                     for (let j = i + 1; j < active.length; j++) {
                         const c1 = active[i];
                         const c2 = active[j];
+                        if (!c1.alive || !c2.alive) continue;
                         
                         const dx = c2.x - c1.x;
                         const dy = c2.y - c1.y;
@@ -271,13 +288,25 @@ export function runBattleArena(picker) {
                             const dmgFrom1 = Math.floor(5 + Math.random() * 11) + (c1.weight > 1 ? (c1.weight > 2 ? 20 : 10) : 0);
                             const dmgFrom2 = Math.floor(5 + Math.random() * 11) + (c2.weight > 1 ? (c2.weight > 2 ? 20 : 10) : 0);
                             
-                            takeDamage(c1, dmgFrom2);
-                            takeDamage(c2, dmgFrom1);
+                            // Recovery prevents overlapping neighbours draining health every frame.
+                            if (elapsed - c1.lastHitTime >= 500) {
+                                takeDamage(c1, dmgFrom2);
+                                c1.lastHitTime = elapsed;
+                            }
+                            if (elapsed - c2.lastHitTime >= 500) {
+                                takeDamage(c2, dmgFrom1);
+                                c2.lastHitTime = elapsed;
+                            }
                         }
                     }
                 }
             }
             
+            // Overtime drains survivors so a separated final pair cannot stall.
+            if (elapsed >= battleDuration && active.length > 1) {
+                active.filter(c => c.alive).forEach(c => takeDamage(c, 25 * delta / 1000));
+            }
+
             // Render Draw
             contestants.filter(c => !c.alive).forEach(c => {
                 if (!c.deathTime) return;
@@ -348,7 +377,7 @@ export function runBattleArena(picker) {
                     winnerContestant.animProgress = 0;
                 }
                 
-                winnerContestant.animProgress += 0.02;
+                winnerContestant.animProgress += 0.02 * frameScale;
                 if (winnerContestant.animProgress >= 1) {
                     winnerContestant.animProgress = 1;
                 }
@@ -395,8 +424,8 @@ export function runBattleArena(picker) {
                     winnerContestant.resolved = true;
                     setTimeout(() => {
                         winnerContestant.finished = true;
-                        resolve(winner);
-                    }, 2000);
+                        resolve(picker.animationCancelled ? null : winner);
+                    }, 2000 * durationMultiplier);
                 }
                 
                 if (winnerContestant.finished) {

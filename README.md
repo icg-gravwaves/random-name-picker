@@ -11,7 +11,7 @@ A fun, interactive random name picker with multiple animation styles. Hosted ent
   - 🎰 **Slots** — stacked reel animation
   - 🪝 **Claw** — arcade claw with occasional fumbles
   - 🏁 **Race** — loser-mode race for tension
-  - ⚔️ **Battle Arena** — multi-hit eliminations
+  - ⚔️ **Battle Arena** — paced multi-hit eliminations, hit recovery, and overtime for larger groups
   - 🔦 **Spotlight** — sweeping spotlight reveal
 
 - **Controls & Options:**

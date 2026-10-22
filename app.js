@@ -9,7 +9,6 @@ import { drawSpotlightPreview, runSpotlight } from './games/spotlight.js';
 class SoundEngine {
     constructor() {
         this.ctx = null;
-        this.loops = new Map();
         this.buffers = {};
         this.loading = {};
     }
@@ -26,11 +25,6 @@ class SoundEngine {
         if (this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
-    }
-
-    stopAllLoops() {
-        this.loops.forEach(handle => clearTimeout(handle));
-        this.loops.clear();
     }
 
     async loadBuffer(key, url) {
@@ -117,36 +111,12 @@ class SoundEngine {
         source.stop(now + duration + 0.05);
     }
 
-    playTick(pitch = 900) {
-        this.playTone({ frequency: pitch, duration: 0.08, type: 'square', volume: 0.08 });
-    }
-
-    playThunk(pitch = 180) {
-        this.playTone({ frequency: pitch, duration: 0.12, type: 'sawtooth', volume: 0.12 });
-    }
-
-    playHit() {
-        this.playNoise({ duration: 0.12, volume: 0.12, band: 900 });
-        this.playTone({ frequency: 520, duration: 0.08, type: 'triangle', volume: 0.08 });
-    }
-
     playCountdown(count) {
         const base = count > 0 ? 360 : 760;
         this.playTone({ frequency: base, duration: 0.18, type: 'sine', volume: 0.16 });
         if (count === 0) {
             this.playTone({ frequency: 1040, duration: 0.24, type: 'triangle', volume: 0.14, delay: 0.05 });
         }
-    }
-
-    playSweepPad() {
-        this.playNoise({ duration: 0.8, volume: 0.08, band: 400 });
-        this.playTone({ frequency: 220, duration: 0.7, type: 'sawtooth', volume: 0.05 });
-    }
-
-    playReveal() {
-        [880, 1320, 1760].forEach((f, i) => {
-            this.playTone({ frequency: f, duration: 0.35, type: 'sine', volume: 0.12, delay: i * 0.05 });
-        });
     }
 
     playWin() {
@@ -284,7 +254,7 @@ class RandomNamePicker {
         this.initElements();
         this.initEventListeners();
         this.loadFromStorage();
-        this.initAnimations();
+        this.updateAnimations();
     }
 
     /**
@@ -476,9 +446,7 @@ class RandomNamePicker {
             this.names.push(name);
             this.weights.push(1); // Default weight of 1
             this.nameInput.value = '';
-            this.updateNamesList();
-            this.saveToStorage();
-            this.updateAnimations();
+            this.commitNameChange();
         }
     }
 
@@ -490,9 +458,7 @@ class RandomNamePicker {
         if (this.isSpinning) return;
         this.names.splice(index, 1);
         this.weights.splice(index, 1);
-        this.updateNamesList();
-        this.saveToStorage();
-        this.updateAnimations();
+        this.commitNameChange();
     }
 
     /**
@@ -503,9 +469,7 @@ class RandomNamePicker {
         if (this.names.length === 0 || confirm('Clear all names?')) {
             this.names = [];
             this.weights = [];
-            this.updateNamesList();
-            this.saveToStorage();
-            this.updateAnimations();
+            this.commitNameChange();
         }
     }
 
@@ -520,6 +484,11 @@ class RandomNamePicker {
                 this.weights.push(1); // Default weight of 1
             }
         });
+        this.commitNameChange();
+    }
+
+    /** Persist name changes and refresh the list and animation previews. */
+    commitNameChange() {
         this.updateNamesList();
         this.saveToStorage();
         this.updateAnimations();
@@ -607,13 +576,6 @@ class RandomNamePicker {
     }
 
     /**
-     * Initialize preview canvases for all animations.
-     */
-    initAnimations() {
-        this.updateAnimations();
-    }
-
-    /**
      * Redraw all previews to reflect current names and weights.
      */
     updateAnimations() {
@@ -636,7 +598,6 @@ class RandomNamePicker {
         if (this.isSpinning) return;
 
         this.sound.resume();
-        this.sound.stopAllLoops();
 
         this.isSpinning = true;
         this.animationCancelled = false;
@@ -671,7 +632,6 @@ class RandomNamePicker {
         }
 
         this.stopBtn.style.display = 'none';
-        this.sound.stopAllLoops();
 
         // Only show winner if animation wasn't cancelled
         if (!this.animationCancelled) {
@@ -700,7 +660,6 @@ class RandomNamePicker {
      */
     stopAnimation() {
         this.animationCancelled = true;
-        this.sound.stopAllLoops();
     }
 
     /**
@@ -735,11 +694,7 @@ class RandomNamePicker {
         if (this.lastWinner) {
             const index = this.names.indexOf(this.lastWinner);
             if (index > -1) {
-                this.names.splice(index, 1);
-                this.weights.splice(index, 1);
-                this.updateNamesList();
-                this.saveToStorage();
-                this.updateAnimations();
+                this.removeName(index);
             }
             this.lastWinner = null;
             this.closeModal();
@@ -759,13 +714,6 @@ class RandomNamePicker {
     closeModal() {
         this.winnerModal.classList.remove('show');
         // Reset slot machine position for next spin
-        this.resetSlotPosition();
-    }
-
-    /**
-     * Reset slot reel position and remove highlight markers.
-     */
-    resetSlotPosition() {
         resetSlots(this);
     }
 

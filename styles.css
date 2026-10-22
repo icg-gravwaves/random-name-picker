@@ -677,35 +677,29 @@ body {
     }
 }
 
-/* Claw Machine */
-#clawCanvas {
+/* Shared game canvas dimensions. */
+#clawCanvas,
+#raceCanvas,
+#battleCanvas,
+#spotlightCanvas {
     width: 100%;
     height: 100%;
     border-radius: 15px;
+}
+
+/* Claw Machine */
+#clawCanvas {
     background: linear-gradient(to bottom, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
 }
 
 /* Race Animation */
 #raceCanvas {
-    width: 100%;
-    height: 100%;
-    border-radius: 15px;
     background: linear-gradient(to bottom, #87CEEB 0%, #87CEEB 60%, #228B22 60%, #228B22 100%);
 }
 
-/* Battle Arena Animation */
-#battleCanvas {
-    width: 100%;
-    height: 100%;
-    border-radius: 15px;
-    background: #1a1a2e;
-}
-
-/* Spotlight Animation */
+/* Battle arena and spotlight backgrounds. */
+#battleCanvas,
 #spotlightCanvas {
-    width: 100%;
-    height: 100%;
-    border-radius: 15px;
     background: #1a1a2e;
 }
 

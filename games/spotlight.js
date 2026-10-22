@@ -3,6 +3,20 @@ import { drawEmojiBadgeWithLabel } from './emoji-badge.js';
 
 const BUGS = ['🪳', '🐜', '🦗', '🪲', '🪰', '🦟', '🕷️', '🐛'];
 
+// Draw a bug and its name consistently across spotlight rendering passes.
+function drawBug(ctx, pos, x = pos.x, y = pos.y, color = pos.color) {
+    return drawEmojiBadgeWithLabel(ctx, {
+        x,
+        y,
+        emoji: pos.bug,
+        color,
+        emojiSize: Math.round(pos.fontSize * 2.4),
+        label: pos.name,
+        labelFontSize: pos.fontSize,
+        labelPosition: 'bottom'
+    });
+}
+
 export function drawSpotlightPreview(picker) {
     if (picker.names.length === 0) return;
     
@@ -235,17 +249,7 @@ export function runSpotlight(picker) {
                     // Other names visible in background — overlay fades to black as winner travels
                     namePositions.forEach(pos => {
                         if (pos.isWinner) return;
-                        const bugSize = Math.round(pos.fontSize * 2.4);
-                        drawEmojiBadgeWithLabel(ctx, {
-                            x: pos.x,
-                            y: pos.y,
-                            emoji: pos.bug,
-                            color: pos.color,
-                            emojiSize: bugSize,
-                            label: pos.name,
-                            labelFontSize: pos.fontSize,
-                            labelPosition: 'bottom'
-                        });
+                        drawBug(ctx, pos);
                     });
                     
                     const overlayAlpha = 0.72 + pp * 0.28;
@@ -253,33 +257,10 @@ export function runSpotlight(picker) {
                     ctx.fillRect(0, 0, width, height);
                     
                     // Winner drawn bright on top, growing as it moves to centre
-                    const winnerFontSize = winnerPos.fontSize;
-                    const winnerBugSize = Math.round(winnerFontSize * 2.4);
-                    drawEmojiBadgeWithLabel(ctx, {
-                        x: winnerPos.x,
-                        y: winnerPos.y,
-                        emoji: winnerPos.bug,
-                        color: '#ffd700',
-                        emojiSize: winnerBugSize,
-                        label: winner,
-                        labelFontSize: winnerFontSize,
-                        labelPosition: 'bottom'
-                    });
+                    drawBug(ctx, winnerPos, winnerPos.x, winnerPos.y, '#ffd700');
                 } else {
                     // Presenting complete: winner centred large, announcement below
-                    const finalFontSize = winnerPos.fontSize;
-                    const finalBugSize = Math.round(finalFontSize * 2.4);
-                    const nameCY = height / 2;
-                    const labelMetrics = drawEmojiBadgeWithLabel(ctx, {
-                        x: width / 2,
-                        y: nameCY,
-                        emoji: winnerPos.bug,
-                        color: '#ffd700',
-                        emojiSize: finalBugSize,
-                        label: winner,
-                        labelFontSize: finalFontSize,
-                        labelPosition: 'bottom'
-                    });
+                    const labelMetrics = drawBug(ctx, winnerPos, width / 2, height / 2, '#ffd700');
                     ctx.fillStyle = '#ffd700';
                     ctx.font = 'bold 22px Poppins';
                     ctx.textAlign = 'center';
@@ -296,17 +277,7 @@ export function runSpotlight(picker) {
             } else {
                 // sweeping / catching / locked — names at full color, overlay provides dimming
                 namePositions.forEach(pos => {
-                    const bugSize = Math.round(pos.fontSize * 2.4);
-                    drawEmojiBadgeWithLabel(ctx, {
-                        x: pos.x,
-                        y: pos.y,
-                        emoji: pos.bug,
-                        color: pos.color,
-                        emojiSize: bugSize,
-                        label: pos.name,
-                        labelFontSize: pos.fontSize,
-                        labelPosition: 'bottom'
-                    });
+                    drawBug(ctx, pos);
                 });
                 
                 // Dim overlay with spotlight hole
@@ -333,17 +304,7 @@ export function runSpotlight(picker) {
                 ctx.arc(spotlightX, spotlightY, currentRadius, 0, Math.PI * 2);
                 ctx.clip();
                 namePositions.forEach(pos => {
-                    const bugSize = Math.round(pos.fontSize * 2.4);
-                    drawEmojiBadgeWithLabel(ctx, {
-                        x: pos.x,
-                        y: pos.y,
-                        emoji: pos.bug,
-                        color: pos.color,
-                        emojiSize: bugSize,
-                        label: pos.name,
-                        labelFontSize: pos.fontSize,
-                        labelPosition: 'bottom'
-                    });
+                    drawBug(ctx, pos);
                 });
                 ctx.restore();
             }

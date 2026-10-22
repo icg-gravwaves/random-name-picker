@@ -36,15 +36,15 @@ export function setupSlots(picker) {
     const sideVisualItems = slices.map(slice => buildNameVisual(slice.index, slice.name));
     const sideReelCount = Math.max(300, 20 * picker.names.length);
 
-    populateReel(picker.slotLeftReel, buildRepeatedColoredItems(sideVisualItems, sideReelCount), 'slot-item-symbol');
-    populateReel(picker.slotCenterReel, buildRepeatedColoredItems(coloredNameItems, 60), 'slot-item-name');
-    populateReel(picker.slotRightReel, buildRepeatedColoredItems(sideVisualItems, sideReelCount), 'slot-item-symbol');
+    populateReel(picker.slotLeftReel, buildRepeatedItems(sideVisualItems, sideReelCount), 'slot-item-symbol');
+    populateReel(picker.slotCenterReel, buildRepeatedItems(coloredNameItems, 60), 'slot-item-name');
+    populateReel(picker.slotRightReel, buildRepeatedItems(sideVisualItems, sideReelCount), 'slot-item-symbol');
 
     resetSlots(picker);
 }
 
 export function resetSlots(picker) {
-    [picker.slotLeftReel, picker.slotCenterReel, picker.slotRightReel].forEach((reel, index) => {
+    [picker.slotLeftReel, picker.slotCenterReel, picker.slotRightReel].forEach(reel => {
         if (!reel) {
             return;
         }
@@ -58,9 +58,7 @@ export function resetSlots(picker) {
         }
 
         reel.querySelectorAll('.slot-item').forEach(el => {
-            el.classList.remove('center');
-            el.classList.remove('glow-match');
-            el.classList.remove('glow-mismatch');
+            el.classList.remove('center', 'glow-match', 'glow-mismatch');
         });
     });
 }
@@ -74,22 +72,11 @@ function setReelToRandomPosition(reel) {
     reel.style.transform = `translateY(-${finalOffset}px)`;
 }
 
-function buildRepeatedColoredItems(items, minimumCount) {
+function buildRepeatedItems(items, minimumCount) {
     if (items.length === 0) return [];
     const repeated = [];
     const repeats = Math.max(1, Math.ceil(minimumCount / items.length));
     for (let i = 0; i < repeats; i++) repeated.push(...items);
-    return repeated;
-}
-
-function buildRepeatedItems(items, minimumCount) {
-    const repeated = [];
-    const repeats = Math.max(1, Math.ceil(minimumCount / items.length));
-
-    for (let repeat = 0; repeat < repeats; repeat++) {
-        repeated.push(...items);
-    }
-
     return repeated;
 }
 
@@ -137,110 +124,101 @@ function applyGlow(reel, glowClass) {
     });
 }
 
-export function spinSlots(picker, winner) {
-    return new Promise(async resolve => {
-        const winnerIndex = picker.names.indexOf(winner);
-        const winnerVisual = winnerIndex >= 0 ? buildNameVisual(winnerIndex, winner) : null;
-        
-        // Build list of other possible name indices (for mismatches)
-        const otherNameIndices = picker.names
-            .map((_, i) => i)
-            .filter(i => i !== winnerIndex);
-        
-        const canHaveJeopardy = winnerIndex >= 0 && otherNameIndices.length > 0;
+export async function spinSlots(picker, winner) {
+    const winnerIndex = picker.names.indexOf(winner);
+    const winnerVisual = winnerIndex >= 0 ? buildNameVisual(winnerIndex, winner) : null;
 
-        resetSlots(picker);
+    // Build list of other possible name indices (for mismatches)
+    const otherNameIndices = picker.names
+        .map((_, i) => i)
+        .filter(i => i !== winnerIndex);
 
-        for (let attempt = 0; attempt <= MAX_JEOPARDY_MISSES; attempt++) {
-            if (picker.animationCancelled) { resolve(); return; }
+    const canHaveJeopardy = winnerIndex >= 0 && otherNameIndices.length > 0;
 
-            const isLastAttempt = attempt === MAX_JEOPARDY_MISSES;
-            const isMatch = !canHaveJeopardy || isLastAttempt || Math.random() >= MISS_PROBABILITY;
+    resetSlots(picker);
 
-            const baseDuration = 1400 * picker.durationMultiplier;
+    for (let attempt = 0; attempt <= MAX_JEOPARDY_MISSES; attempt++) {
+        if (picker.animationCancelled) return;
 
-            let leftVisual;
-            let rightVisual;
+        const isLastAttempt = attempt === MAX_JEOPARDY_MISSES;
+        const isMatch = !canHaveJeopardy || isLastAttempt || Math.random() >= MISS_PROBABILITY;
 
-            if (isMatch) {
-                leftVisual = winnerVisual;
-                rightVisual = winnerVisual;
-            } else {
-                const leftIndex = pickRandomIndex(otherNameIndices);
-                const rightCandidateIndices = otherNameIndices.length > 1
-                    ? otherNameIndices.filter(i => i !== leftIndex)
-                    : otherNameIndices;
-                const rightIndex = pickRandomIndex(rightCandidateIndices);
+        const baseDuration = 1400 * picker.durationMultiplier;
 
-                leftVisual = buildNameVisual(leftIndex, picker.names[leftIndex]);
-                rightVisual = buildNameVisual(rightIndex, picker.names[rightIndex]);
-            }
+        let leftVisual;
+        let rightVisual;
 
-            const leftSpin = spinSingleReel(
-                picker,
-                picker.slotLeftReel,
-                leftVisual.text,
-                baseDuration,
-                leftVisual.color,
-                leftVisual.nameIndex
-            );
-            const rightSpin = spinSingleReel(
-                picker,
-                picker.slotRightReel,
-                rightVisual.text,
-                baseDuration * 1.65,
-                rightVisual.color,
-                rightVisual.nameIndex
-            );
-            const centerSpin = spinSingleReel(picker, picker.slotCenterReel, winner, baseDuration * 1.25);
+        if (isMatch) {
+            leftVisual = winnerVisual;
+            rightVisual = winnerVisual;
+        } else {
+            const leftIndex = pickRandomIndex(otherNameIndices);
+            const rightCandidateIndices = otherNameIndices.length > 1
+                ? otherNameIndices.filter(i => i !== leftIndex)
+                : otherNameIndices;
+            const rightIndex = pickRandomIndex(rightCandidateIndices);
 
-            await leftSpin;
-            if (picker.animationCancelled) { resolve(); return; }
-            await centerSpin;
-            if (picker.animationCancelled) { resolve(); return; }
-            await rightSpin;
-            if (picker.animationCancelled) { resolve(); return; }
+            leftVisual = buildNameVisual(leftIndex, picker.names[leftIndex]);
+            rightVisual = buildNameVisual(rightIndex, picker.names[rightIndex]);
+        }
 
-            if (isMatch) {
-                // Match found: apply green glow to colored badges
-                applyGlow(picker.slotLeftReel, 'glow-match');
-                applyGlow(picker.slotRightReel, 'glow-match');
-                applyGlow(picker.slotCenterReel, 'glow-match');
-                const slotMachine = picker.slotLeftReel.closest('.slot-machine');
-                if (slotMachine) {
-                    slotMachine.classList.add('match');
-                    slotMachine.addEventListener('animationend', () => slotMachine.classList.remove('match'), { once: true });
-                }
-                picker.sound.playWin();
+        const leftSpin = spinSingleReel(
+            picker,
+            picker.slotLeftReel,
+            leftVisual.text,
+            baseDuration,
+            leftVisual.color,
+            leftVisual.nameIndex
+        );
+        const rightSpin = spinSingleReel(
+            picker,
+            picker.slotRightReel,
+            rightVisual.text,
+            baseDuration * 1.65,
+            rightVisual.color,
+            rightVisual.nameIndex
+        );
+        const centerSpin = spinSingleReel(picker, picker.slotCenterReel, winner, baseDuration * 1.25);
 
-                // Wait to show the glow before revealing the winner
-                await new Promise(r => setTimeout(r, 1200));
-                if (picker.animationCancelled) { resolve(); return; }
+        await leftSpin;
+        if (picker.animationCancelled) return;
+        await centerSpin;
+        if (picker.animationCancelled) return;
+        await rightSpin;
+        if (picker.animationCancelled) return;
 
-                resolve();
-                return;
-            }
-
-            // Mismatch: apply red glow to colored badges and flash the machine
-            applyGlow(picker.slotLeftReel, 'glow-mismatch');
-            applyGlow(picker.slotRightReel, 'glow-mismatch');
-            applyGlow(picker.slotCenterReel, 'glow-mismatch');
+        const showResult = (match) => {
+            applyGlow(picker.slotLeftReel, match ? 'glow-match' : 'glow-mismatch');
+            applyGlow(picker.slotRightReel, match ? 'glow-match' : 'glow-mismatch');
+            applyGlow(picker.slotCenterReel, match ? 'glow-match' : 'glow-mismatch');
 
             const slotMachine = picker.slotLeftReel.closest('.slot-machine');
             if (slotMachine) {
-                slotMachine.classList.add('mismatch');
-                slotMachine.addEventListener('animationend', () => slotMachine.classList.remove('mismatch'), { once: true });
+                slotMachine.classList.add(match ? 'match' : 'mismatch');
+                slotMachine.addEventListener('animationend', () => slotMachine.classList.remove(match ? 'match' : 'mismatch'), { once: true });
             }
-            picker.sound.playWrong();
 
-            await new Promise(r => setTimeout(r, 2000));
-            if (picker.animationCancelled) { resolve(); return; }
+            if (match) picker.sound.playWin();
+            else picker.sound.playWrong();
+        };
 
-            resetSlots(picker);
+        if (isMatch) {
+            showResult(true);
+
+            // Wait to show the glow before revealing the winner
+            await new Promise(r => setTimeout(r, 1200));
+            if (picker.animationCancelled) return;
+
+            return;
         }
 
-        resolve();
-    });
+        showResult(false);
+
+        await new Promise(r => setTimeout(r, 2000));
+        if (picker.animationCancelled) return;
+
+        resetSlots(picker);
+    }
 }
 
 function spinSingleReel(picker, reel, targetValue, duration, targetColor = null, targetNameIndex = null) {
